@@ -51,7 +51,20 @@ class Settings(BaseSettings):
     DB_USER: str = Field(default="laliga_user", description="Database user")
     DB_PASSWORD: str = Field(default="", description="Database password")
 
-    # Web Scraping Configuration
+    # API Football Configuration
+    API_FOOTBALL_KEY: str = Field(default="", description="API-Football API key")
+    API_FOOTBALL_BASE_URL: str = Field(
+        default="https://v3.football.api-sports.io",
+        description="API-Football base URL",
+    )
+    LALIGA_LEAGUE_ID: int = Field(default=140, description="LaLiga league ID")
+    API_REQUEST_TIMEOUT: int = Field(
+        default=30, ge=5, le=120, description="API request timeout"
+    )
+    API_MAX_RETRIES: int = Field(default=3, ge=1, le=10, description="API max retries")
+    API_RETRY_DELAY: int = Field(default=2, ge=1, description="API retry delay")
+
+    # Web Scraping Configuration (Legacy)
     FBREF_BASE_URL: str = Field(
         default="https://fbref.com/en/", description="FBRef base URL"
     )
@@ -183,6 +196,34 @@ class Settings(BaseSettings):
             raise ValueError("DB_USER is required but not set")
 
         return True
+
+    def validate_api_football(self) -> bool:
+        """
+        Validate API Football configuration.
+
+        Returns:
+            True if API key is set
+
+        Raises:
+            ValueError: If API key is missing
+        """
+        if not self.API_FOOTBALL_KEY or self.API_FOOTBALL_KEY == "your_api_key_here":
+            raise ValueError(
+                "API_FOOTBALL_KEY is required. Get your free key from https://www.api-football.com/"
+            )
+        return True
+
+    def get_api_headers(self) -> dict[str, str]:
+        """
+        Get headers for API Football requests.
+
+        Returns:
+            Dictionary with API headers
+        """
+        return {
+            "x-rapidapi-host": "v3.football.api-sports.io",
+            "x-rapidapi-key": self.API_FOOTBALL_KEY,
+        }
 
     def get_user_agent(self) -> str:
         """

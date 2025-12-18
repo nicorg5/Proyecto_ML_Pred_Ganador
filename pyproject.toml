@@ -24,10 +24,12 @@ dependencies = [
     "numpy>=1.24.0",
     "scikit-learn>=1.3.0",
 
-    # Web Scraping
+    # Web Scraping & APIs
     "beautifulsoup4>=4.12.0",
     "requests>=2.31.0",
     "lxml>=4.9.0",
+    "httpx>=0.25.0",  # Async HTTP client for API calls
+    "tenacity>=8.2.0",  # Retry logic for API requests
 
     # Database
     "sqlalchemy>=2.0.0",
