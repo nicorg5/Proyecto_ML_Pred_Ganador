@@ -55,7 +55,7 @@ class APIFootballClient:
 
         # Rate limiting
         self.last_request_time = 0.0
-        self.min_request_interval = 1.0  # 1 second between requests
+        self.min_request_interval = 7.0  # 7 seconds between requests (10 req/min limit = 6s min + 1s safety margin)
 
         logger.info(f"Initialized API Football client for league {self.league_id}")
 
@@ -320,11 +320,12 @@ def main() -> None:
             seasons = client.get_seasons()
             logger.info(f"Available seasons: {seasons[:5]}")
 
-            # Get teams for latest season
+            # Get teams for valid season (free plan: 2022-2024)
             if seasons:
-                latest_season = seasons[0]
-                logger.info(f"\nFetching teams for season {latest_season}...")
-                teams = client.get_teams(latest_season)
+                # Use 2024 instead of latest (free plan limitation)
+                valid_season = 2024 if 2024 in seasons else seasons[0]
+                logger.info(f"\nFetching teams for season {valid_season}...")
+                teams = client.get_teams(valid_season)
                 logger.info(f"Teams count: {len(teams)}")
 
                 if teams:

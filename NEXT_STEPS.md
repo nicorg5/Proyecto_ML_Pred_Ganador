@@ -38,7 +38,7 @@ uv sync                # 132 paquetes instalados
 
 ## 📝 TUS PRÓXIMAS TAREAS
 
-### TAREA 1: Obtener API Key (5 min) ⚡ URGENTE
+### TAREA 1: Obtener API Key (5 min) ⚡ URGENTE -> HECHO
 
 1. Ve a: https://www.api-football.com/
 2. Regístrate (email + contraseña)
@@ -48,7 +48,7 @@ uv sync                # 132 paquetes instalados
    API_FOOTBALL_KEY=tu_clave_aqui
    ```
 
-### TAREA 2: Arreglar Permisos (1 min)
+### TAREA 2: Arreglar Permisos (1 min) -> HECHO
 
 ```bash
 sudo chown -R nico:nico /home/nico/Proyecto_ML_Pred_Ganador/database
@@ -87,7 +87,7 @@ INFO - First 3 teams:
 ### Semana 1: Datos ✅ EN CURSO
 - [x] Setup proyecto
 - [x] Configurar API Football
-- [ ] Obtener API key ← **ESTÁS AQUÍ**
+- [x] Obtener API key ← **ESTÁS AQUÍ**
 - [ ] Diseñar esquema BD minimalista
 - [ ] Fetch datos 5 temporadas (1,900 partidos)
 - [ ] Validar calidad de datos

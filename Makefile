@@ -138,8 +138,8 @@ db-reset: ## Reset database (WARNING: deletes all data)
 	echo; \
 	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
 		echo "$(BLUE)Resetting database...$(NC)"; \
-		docker-compose down -v; \
-		docker-compose up -d postgres; \
+		docker compose down -v; \
+		docker compose up -d postgres; \
 		sleep 5; \
 		uv run python database/init_db.py; \
 	fi
@@ -150,21 +150,21 @@ db-reset: ## Reset database (WARNING: deletes all data)
 
 docker-up: ## Start Docker containers (PostgreSQL + pgAdmin)
 	@echo "$(BLUE)Starting Docker containers...$(NC)"
-	docker-compose up -d
+	docker compose up -d
 	@echo "$(GREEN)PostgreSQL running on localhost:5432$(NC)"
 	@echo "$(GREEN)pgAdmin running on http://localhost:5050$(NC)"
 
 docker-down: ## Stop Docker containers
 	@echo "$(BLUE)Stopping Docker containers...$(NC)"
-	docker-compose down
+	docker compose down
 
 docker-logs: ## Show Docker container logs
 	@echo "$(BLUE)Showing Docker logs...$(NC)"
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-restart: ## Restart Docker containers
 	@echo "$(BLUE)Restarting Docker containers...$(NC)"
-	docker-compose restart
+	docker compose restart
 
 # ===================================
 # JUPYTER NOTEBOOK
@@ -211,4 +211,4 @@ info: ## Show project information
 	@uv --version || echo "  UV: not found"
 	@echo ""
 	@echo "$(BLUE)Docker Status$(NC)"
-	@docker-compose ps 2>/dev/null || echo "  Docker Compose: not running"
+	@docker compose ps 2>/dev/null || echo "  Docker Compose: not running"
