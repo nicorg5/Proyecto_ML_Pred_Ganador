@@ -64,6 +64,19 @@ class Settings(BaseSettings):
     API_MAX_RETRIES: int = Field(default=3, ge=1, le=10, description="API max retries")
     API_RETRY_DELAY: int = Field(default=2, ge=1, description="API retry delay")
 
+    # Soccerdata Database Configuration
+    SD_DB_HOST: str = Field(default="localhost", description="Soccerdata PostgreSQL host")
+    SD_DB_PORT: int = Field(default=5432, description="Soccerdata PostgreSQL port")
+    SD_DB_NAME: str = Field(default="laliga_soccerdata", description="Soccerdata database name")
+    SD_DB_USER: str = Field(default="laliga_user", description="Soccerdata database user")
+    SD_DB_PASSWORD: str = Field(default="", description="Soccerdata database password")
+
+    # Soccerdata Scraping Configuration
+    SD_SEASONS: str = Field(
+        default="1718,1819,1920,2021,2122,2223,2324,2425",
+        description="Comma-separated seasons for soccerdata (format: YYYY)",
+    )
+
     # Web Scraping Configuration (Legacy)
     FBREF_BASE_URL: str = Field(
         default="https://fbref.com/en/", description="FBRef base URL"
@@ -84,6 +97,32 @@ class Settings(BaseSettings):
     )
     CV_FOLDS: int = Field(
         default=5, ge=2, le=10, description="Cross-validation folds"
+    )
+
+    # ML Pipeline Configuration
+    ROLLING_WINDOWS: str = Field(
+        default="3,5,10",
+        description="Comma-separated rolling window sizes for feature engineering",
+    )
+    TRAIN_SEASONS: str = Field(
+        default="1718,1819,1920,2021,2122,2223",
+        description="Seasons for training set",
+    )
+    VAL_SEASONS: str = Field(
+        default="2324",
+        description="Seasons for validation set",
+    )
+    TEST_SEASONS: str = Field(
+        default="2425",
+        description="Seasons for test set",
+    )
+    FEATURE_CACHE_DIR: Path = Field(
+        default=Path("data/processed"),
+        description="Directory for cached feature files",
+    )
+    N_TUNING_TRIALS: int = Field(
+        default=50, ge=10, le=500,
+        description="Number of Optuna hyperparameter tuning trials",
     )
 
     # Logging Configuration
@@ -153,6 +192,14 @@ class Settings(BaseSettings):
         return (
             f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        )
+
+    @property
+    def soccerdata_database_url(self) -> str:
+        """Construct the database URL for the soccerdata database."""
+        return (
+            f"postgresql://{self.SD_DB_USER}:{self.SD_DB_PASSWORD}"
+            f"@{self.SD_DB_HOST}:{self.SD_DB_PORT}/{self.SD_DB_NAME}"
         )
 
     def setup_logging(self) -> None:

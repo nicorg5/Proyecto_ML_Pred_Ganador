@@ -1,0 +1,7 @@
+{
+  "name": "MeanBaseline_value",
+  "model_type": "regressor",
+  "feature_count": 119,
+  "saved_at": "2026-02-08T11:30:53.368582",
+  "train_mean": 5.232198142414861
+}

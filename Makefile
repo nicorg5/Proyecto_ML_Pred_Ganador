@@ -1,4 +1,4 @@
-.PHONY: help install install-dev sync test test-cov lint format pre-commit scrape train db-init db-migrate db-reset clean docker-up docker-down
+.PHONY: help install install-dev sync test test-cov lint format pre-commit scrape train db-init db-migrate db-reset clean docker-up docker-down sd-create-db sd-init sd-init-drop sd-etl sd-etl-mh sd-etl-espn sd-etl-fbref-schedule sd-etl-fbref-stats sd-etl-fbref-stats-type sd-etl-players sd-etl-shots sd-etl-standings sd-etl-season sd-validate sd-status ml-features ml-train ml-train-winner ml-train-goals ml-train-cards ml-predict ml-pipeline
 
 # Default target
 .DEFAULT_GOAL := help
@@ -101,20 +101,35 @@ scrape-season: ## Scrape specific season (usage: make scrape-season SEASON=2023-
 	uv run python -m src.laliga_predictor.data.scraper --season $(SEASON)
 
 # ===================================
-# MACHINE LEARNING
+# MACHINE LEARNING (soccerdata pipeline)
 # ===================================
 
-train: ## Train the ML model
-	@echo "$(BLUE)Training ML model...$(NC)"
-	uv run python -m src.laliga_predictor.models.train
+ml-features: ## Build ML features from database -> data/processed/features.parquet
+	@echo "$(BLUE)Building ML features from database...$(NC)"
+	uv run python -m src.laliga_predictor.features.feature_engineering
 
-predict: ## Make predictions (requires trained model)
-	@echo "$(BLUE)Making predictions...$(NC)"
-	uv run python -m src.laliga_predictor.models.predict
+ml-train: ## Train all models for all targets (winner + goals + cards)
+	@echo "$(BLUE)Training all ML models...$(NC)"
+	uv run python -m src.laliga_predictor.models.train --target all --model all
 
-evaluate: ## Evaluate model performance
-	@echo "$(BLUE)Evaluating model...$(NC)"
-	uv run python -m src.laliga_predictor.models.evaluate
+ml-train-winner: ## Train winner prediction models only (baseline + RF + XGBoost + Ensemble)
+	@echo "$(BLUE)Training winner prediction models...$(NC)"
+	uv run python -m src.laliga_predictor.models.train --target winner --model all
+
+ml-train-goals: ## Train total goals prediction models only
+	@echo "$(BLUE)Training total goals prediction models...$(NC)"
+	uv run python -m src.laliga_predictor.models.train --target goals --model all
+
+ml-train-cards: ## Train total cards prediction models only
+	@echo "$(BLUE)Training total cards prediction models...$(NC)"
+	uv run python -m src.laliga_predictor.models.train --target cards --model all
+
+ml-predict: ## Predict a match (HOME=team AWAY=team DATE=YYYY-MM-DD)
+	@echo "$(BLUE)Predicting match: $(HOME) vs $(AWAY) on $(DATE)...$(NC)"
+	uv run python -m src.laliga_predictor.models.predict --home "$(HOME)" --away "$(AWAY)" --date "$(DATE)"
+
+ml-pipeline: ml-features ml-train ## Run full ML pipeline (features + train all)
+	@echo "$(GREEN)ML pipeline complete!$(NC)"
 
 # ===================================
 # DATABASE
@@ -165,6 +180,70 @@ docker-logs: ## Show Docker container logs
 docker-restart: ## Restart Docker containers
 	@echo "$(BLUE)Restarting Docker containers...$(NC)"
 	docker compose restart
+
+# ===================================
+# SOCCERDATA
+# ===================================
+
+sd-create-db: ## Create the soccerdata database in PostgreSQL
+	@echo "$(BLUE)Creating soccerdata database...$(NC)"
+	@uv run python -c "import psycopg2; from src.laliga_predictor.config import get_settings; s = get_settings(); conn = psycopg2.connect(host=s.SD_DB_HOST, port=s.SD_DB_PORT, database='postgres', user=s.SD_DB_USER, password=s.SD_DB_PASSWORD); conn.autocommit = True; cur = conn.cursor(); cur.execute(\"SELECT 1 FROM pg_database WHERE datname = 'laliga_soccerdata'\"); r = cur.fetchone(); exec('if not r: cur.execute(\"CREATE DATABASE laliga_soccerdata\"); print(\"Database laliga_soccerdata created\")\nelse: print(\"Database laliga_soccerdata already exists\")'); conn.close()"
+
+sd-init: sd-create-db ## Initialize soccerdata database schema
+	@echo "$(BLUE)Initializing soccerdata database schema...$(NC)"
+	uv run python -m src.laliga_predictor.data.sd_db_init
+
+sd-init-drop: sd-create-db ## Drop and recreate soccerdata schema (WARNING: deletes data)
+	@echo "$(RED)WARNING: Dropping all soccerdata tables!$(NC)"
+	uv run python -m src.laliga_predictor.data.sd_db_init --drop
+
+sd-etl: ## Run full soccerdata ETL pipeline (all seasons, all steps)
+	@echo "$(BLUE)Running full soccerdata ETL pipeline...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step all
+
+sd-etl-mh: ## Load MatchHistory data only (fast, no rate limit)
+	@echo "$(BLUE)Loading MatchHistory data...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step match-history
+
+sd-etl-espn: ## Load ESPN advanced match stats (possession, passes, tackles, etc.)
+	@echo "$(BLUE)Loading ESPN match stats...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step espn-stats
+
+sd-etl-fbref-schedule: ## Load FBref schedule (xG data)
+	@echo "$(BLUE)Loading FBref schedule...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step fbref-schedule
+
+sd-etl-fbref-stats: ## Load FBref advanced team match stats (rate-limited)
+	@echo "$(BLUE)Loading FBref advanced team stats...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step fbref-stats
+
+sd-etl-fbref-stats-type: ## Load specific FBref stat type (STAT_TYPE=shooting)
+	@echo "$(BLUE)Loading FBref stat type: $(STAT_TYPE)...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step fbref-stats --stat-types $(STAT_TYPE)
+
+sd-etl-players: ## Load player match stats from FBref (optional)
+	@echo "$(BLUE)Loading FBref player match stats...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step player-stats
+
+sd-etl-shots: ## Load shot events from FBref (optional)
+	@echo "$(BLUE)Loading FBref shot events...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step shot-events
+
+sd-etl-standings: ## Compute standings from match results
+	@echo "$(BLUE)Computing standings...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step standings
+
+sd-etl-season: ## Run ETL for specific season (SEASON=2324)
+	@echo "$(BLUE)Running ETL for season $(SEASON)...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step all --seasons $(SEASON)
+
+sd-validate: ## Validate soccerdata database
+	@echo "$(BLUE)Validating soccerdata database...$(NC)"
+	uv run python -m src.laliga_predictor.data.validate_soccerdata
+
+sd-status: ## Show soccerdata database statistics
+	@echo "$(BLUE)Soccerdata database status:$(NC)"
+	uv run python -m src.laliga_predictor.data.sd_db_init --verify
 
 # ===================================
 # JUPYTER NOTEBOOK
