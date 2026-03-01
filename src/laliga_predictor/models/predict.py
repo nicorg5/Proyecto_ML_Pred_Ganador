@@ -17,30 +17,52 @@ from .base import BasePredictor
 
 logger = logging.getLogger(__name__)
 
+# Over/Under lines (must match train.py)
+GOALS_LINES = [1.5, 2.5, 3.5]
+CARDS_LINES = [3.5, 4.5, 5.5]
+
 
 def load_trained_models(
     model_dir: Optional[Path] = None,
 ) -> dict[str, BasePredictor]:
     """Load best trained models for each target.
 
-    Returns dict with keys: 'winner', 'goals', 'cards'.
+    Returns dict with keys: 'winner', 'goals_1.5', 'goals_2.5', etc.
     """
     settings = get_settings()
     model_dir = model_dir or settings.MODEL_PATH
 
     models: dict[str, BasePredictor] = {}
 
-    # Load best model for each target (prefer xgboost > rf > baseline)
-    for target, filename_options in {
-        "winner": ["result_xgboost.joblib", "result_rf.joblib", "result_baseline.joblib"],
-        "goals": ["total_goals_xgboost.joblib", "total_goals_baseline.joblib"],
-        "cards": ["total_cards_xgboost.joblib", "total_cards_baseline.joblib"],
-    }.items():
-        for fname in filename_options:
+    # Winner model (multi-class)
+    for fname in ["result_ensemble.joblib", "result_xgboost.joblib",
+                  "result_rf.joblib", "result_baseline.joblib"]:
+        path = model_dir / fname
+        if path.exists():
+            models["winner"] = BasePredictor.load(path)
+            logger.info(f"Loaded winner model: {fname}")
+            break
+
+    # Goals over/under models
+    for line in GOALS_LINES:
+        key = f"goals_{line}"
+        for model_type in ["xgboost", "baseline"]:
+            fname = f"goals_over_{line}_{model_type}.joblib"
             path = model_dir / fname
             if path.exists():
-                models[target] = BasePredictor.load(path)
-                logger.info(f"Loaded {target} model: {fname}")
+                models[key] = BasePredictor.load(path)
+                logger.info(f"Loaded {key} model: {fname}")
+                break
+
+    # Cards over/under models
+    for line in CARDS_LINES:
+        key = f"cards_{line}"
+        for model_type in ["xgboost", "baseline"]:
+            fname = f"cards_over_{line}_{model_type}.joblib"
+            path = model_dir / fname
+            if path.exists():
+                models[key] = BasePredictor.load(path)
+                logger.info(f"Loaded {key} model: {fname}")
                 break
 
     return models
@@ -125,7 +147,6 @@ def predict_match(
     # Winner prediction
     if "winner" in models:
         model = models["winner"]
-        # Ensure feature order matches training
         X_aligned = X.reindex(columns=model.feature_names, fill_value=0)
         proba = model.predict_proba(X_aligned)[0]
         pred = model.predict(X_aligned)[0]
@@ -136,24 +157,36 @@ def predict_match(
             "away_win_prob": round(float(proba[0]), 3),   # A is index 0
         }
 
-    # Goals prediction
-    if "goals" in models:
-        model = models["goals"]
-        X_aligned = X.reindex(columns=model.feature_names, fill_value=0)
-        pred = model.predict(X_aligned)[0]
-        result["predictions"]["total_goals"] = {
-            "predicted": round(float(pred), 1),
-            "over_2_5_prob": "N/A",
-        }
+    # Goals Over/Under predictions
+    goals_ou = {}
+    for line in GOALS_LINES:
+        key = f"goals_{line}"
+        if key in models:
+            model = models[key]
+            X_aligned = X.reindex(columns=model.feature_names, fill_value=0)
+            proba = model.predict_proba(X_aligned)[0]
+            # proba: [P(under), P(over)]
+            goals_ou[str(line)] = {
+                "over_prob": round(float(proba[1]), 3),
+                "under_prob": round(float(proba[0]), 3),
+            }
+    if goals_ou:
+        result["predictions"]["goals_over_under"] = goals_ou
 
-    # Cards prediction
-    if "cards" in models:
-        model = models["cards"]
-        X_aligned = X.reindex(columns=model.feature_names, fill_value=0)
-        pred = model.predict(X_aligned)[0]
-        result["predictions"]["total_cards"] = {
-            "predicted": round(float(pred), 1),
-        }
+    # Cards Over/Under predictions
+    cards_ou = {}
+    for line in CARDS_LINES:
+        key = f"cards_{line}"
+        if key in models:
+            model = models[key]
+            X_aligned = X.reindex(columns=model.feature_names, fill_value=0)
+            proba = model.predict_proba(X_aligned)[0]
+            cards_ou[str(line)] = {
+                "over_prob": round(float(proba[1]), 3),
+                "under_prob": round(float(proba[0]), 3),
+            }
+    if cards_ou:
+        result["predictions"]["cards_over_under"] = cards_ou
 
     return result
 

@@ -7,8 +7,8 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier, StackingClassifier
-from sklearn.linear_model import LogisticRegression
+from lightgbm import LGBMClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.preprocessing import LabelEncoder
 from xgboost import XGBClassifier
 
@@ -145,31 +145,92 @@ class XGBoostWinner(BasePredictor):
         }).sort_values("importance", ascending=False)
 
 
+class LightGBMWinner(BasePredictor):
+    """LightGBM classifier for match winner prediction."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__("LightGBM", "classifier")
+        settings = get_settings()
+        defaults = {
+            "n_estimators": 500,
+            "max_depth": 6,
+            "learning_rate": 0.05,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "reg_alpha": 0.5,
+            "reg_lambda": 3.0,
+            "min_child_samples": 20,
+            "num_leaves": 31,
+            "objective": "multiclass",
+            "num_class": 3,
+            "metric": "multi_logloss",
+            "random_state": settings.RANDOM_STATE,
+            "n_jobs": -1,
+            "verbosity": -1,
+        }
+        defaults.update(kwargs)
+        self._lgb_params = defaults
+        self.le = LabelEncoder()
+        self.le.fit(RESULT_CLASSES)
+
+    def fit(self, X_train, y_train, X_val=None, y_val=None):
+        self.feature_names = list(X_train.columns)
+        y_encoded = self.le.transform(y_train)
+
+        params = dict(self._lgb_params)
+        fit_params: dict = {}
+        if X_val is not None and y_val is not None:
+            y_val_enc = self.le.transform(y_val)
+            fit_params["eval_set"] = [(X_val, y_val_enc)]
+
+        self.model = LGBMClassifier(**params)
+        self.model.fit(X_train, y_encoded, **fit_params)
+        self.is_fitted = True
+        self.metadata["params"] = self.model.get_params()
+        return self
+
+    def predict(self, X):
+        y_pred = self.model.predict(X)
+        return self.le.inverse_transform(y_pred)
+
+    def predict_proba(self, X):
+        return self.model.predict_proba(X)
+
+    def get_feature_importance(self):
+        return pd.DataFrame({
+            "feature": self.feature_names,
+            "importance": self.model.feature_importances_,
+        }).sort_values("importance", ascending=False)
+
+
 class EnsembleWinner(BasePredictor):
-    """Stacking ensemble: RF + XGBoost with Logistic Regression meta-learner."""
+    """Soft voting ensemble: RF + XGBoost + LightGBM."""
 
     def __init__(self) -> None:
         super().__init__("Ensemble", "classifier")
         settings = get_settings()
 
-        self.model = StackingClassifier(
+        self.model = VotingClassifier(
             estimators=[
                 ("rf", RandomForestClassifier(
-                    n_estimators=200, max_depth=10, min_samples_leaf=20,
+                    n_estimators=300, max_depth=12, min_samples_leaf=20,
                     class_weight="balanced", random_state=settings.RANDOM_STATE, n_jobs=-1,
                 )),
                 ("xgb", XGBClassifier(
-                    n_estimators=300, max_depth=6, learning_rate=0.05,
+                    n_estimators=300, max_depth=5, learning_rate=0.05,
                     subsample=0.8, colsample_bytree=0.8,
                     objective="multi:softprob", num_class=3,
                     random_state=settings.RANDOM_STATE, n_jobs=-1, verbosity=0,
                 )),
+                ("lgb", LGBMClassifier(
+                    n_estimators=300, max_depth=6, learning_rate=0.05,
+                    subsample=0.8, colsample_bytree=0.8,
+                    num_leaves=31, min_child_samples=20,
+                    objective="multiclass", num_class=3,
+                    random_state=settings.RANDOM_STATE, n_jobs=-1, verbosity=-1,
+                )),
             ],
-            final_estimator=LogisticRegression(
-                max_iter=1000, random_state=settings.RANDOM_STATE,
-            ),
-            cv=3,
-            stack_method="predict_proba",
+            voting="soft",
             n_jobs=-1,
         )
         self.le = LabelEncoder()
@@ -190,9 +251,11 @@ class EnsembleWinner(BasePredictor):
         return self.model.predict_proba(X)
 
     def get_feature_importance(self):
-        # Use RF feature importance from the ensemble
+        # Average feature importances from RF and LGB (XGB uses a different scale)
         rf_model = self.model.estimators_[0]
+        lgb_model = self.model.estimators_[2]
+        avg_importance = (rf_model.feature_importances_ + lgb_model.feature_importances_) / 2
         return pd.DataFrame({
             "feature": self.feature_names,
-            "importance": rf_model.feature_importances_,
+            "importance": avg_importance,
         }).sort_values("importance", ascending=False)

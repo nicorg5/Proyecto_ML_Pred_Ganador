@@ -13,12 +13,21 @@ import pandas as pd
 import pytest
 
 from src.laliga_predictor.models.base import BasePredictor
+from src.laliga_predictor.models.calibration import (
+    CalibratedPredictor,
+    optimize_classification_thresholds,
+)
 from src.laliga_predictor.models.classifiers import (
     HomeAlwaysWinsBaseline,
+    LightGBMWinner,
     RandomForestWinner,
     XGBoostWinner,
 )
-from src.laliga_predictor.models.regressors import MeanBaseline, XGBoostGoals
+from src.laliga_predictor.models.over_under import (
+    LightGBMOverUnder,
+    OverUnderBaseline,
+    XGBoostOverUnder,
+)
 from src.laliga_predictor.models.temporal_cv import SeasonalTimeSeriesSplit
 
 
@@ -46,6 +55,18 @@ def sample_regression_data():
     return X, y
 
 
+@pytest.fixture
+def sample_binary_data():
+    """Small binary dataset for over/under tests."""
+    rng = np.random.default_rng(42)
+    n = 100
+    X = pd.DataFrame({
+        f"feat_{i}": rng.normal(0, 1, n) for i in range(10)
+    })
+    y = pd.Series(rng.choice([0, 1], n, p=[0.45, 0.55]))
+    return X, y
+
+
 class TestClassifierInterface:
     """All classifiers must implement BasePredictor correctly."""
 
@@ -53,6 +74,7 @@ class TestClassifierInterface:
         HomeAlwaysWinsBaseline,
         RandomForestWinner,
         XGBoostWinner,
+        LightGBMWinner,
     ])
     def test_is_base_predictor(self, model_cls):
         model = model_cls()
@@ -62,6 +84,7 @@ class TestClassifierInterface:
         HomeAlwaysWinsBaseline,
         RandomForestWinner,
         XGBoostWinner,
+        LightGBMWinner,
     ])
     def test_fit_returns_self(self, model_cls, sample_classification_data):
         X, y = sample_classification_data
@@ -73,6 +96,7 @@ class TestClassifierInterface:
         HomeAlwaysWinsBaseline,
         RandomForestWinner,
         XGBoostWinner,
+        LightGBMWinner,
     ])
     def test_predict_shape(self, model_cls, sample_classification_data):
         X, y = sample_classification_data
@@ -85,6 +109,7 @@ class TestClassifierInterface:
         HomeAlwaysWinsBaseline,
         RandomForestWinner,
         XGBoostWinner,
+        LightGBMWinner,
     ])
     def test_predict_valid_classes(self, model_cls, sample_classification_data):
         X, y = sample_classification_data
@@ -98,6 +123,7 @@ class TestClassifierInterface:
         HomeAlwaysWinsBaseline,
         RandomForestWinner,
         XGBoostWinner,
+        LightGBMWinner,
     ])
     def test_predict_proba_shape(self, model_cls, sample_classification_data):
         """predict_proba must return shape (n_samples, 3) with probabilities summing to ~1."""
@@ -116,6 +142,7 @@ class TestClassifierInterface:
         HomeAlwaysWinsBaseline,
         RandomForestWinner,
         XGBoostWinner,
+        LightGBMWinner,
     ])
     def test_feature_importance(self, model_cls, sample_classification_data):
         X, y = sample_classification_data
@@ -132,6 +159,7 @@ class TestClassifierInterface:
         HomeAlwaysWinsBaseline,
         RandomForestWinner,
         XGBoostWinner,
+        LightGBMWinner,
     ])
     def test_feature_names_stored(self, model_cls, sample_classification_data):
         X, y = sample_classification_data
@@ -141,45 +169,178 @@ class TestClassifierInterface:
         assert model.is_fitted is True
 
 
-class TestRegressorInterface:
-    """All regressors must implement BasePredictor correctly."""
+class TestOverUnderInterface:
+    """Over/under binary classifiers must implement BasePredictor correctly."""
 
-    @pytest.mark.parametrize("model_cls,kwargs", [
-        (MeanBaseline, {"target_name": "goals"}),
-        (XGBoostGoals, {}),
-    ])
-    def test_predict_shape(self, model_cls, kwargs, sample_regression_data):
-        X, y = sample_regression_data
-        model = model_cls(**kwargs)
+    def test_baseline_is_base_predictor(self):
+        model = OverUnderBaseline(stat_type="goals", line=2.5)
+        assert isinstance(model, BasePredictor)
+
+    def test_xgboost_is_base_predictor(self):
+        model = XGBoostOverUnder(stat_type="goals", line=2.5)
+        assert isinstance(model, BasePredictor)
+
+    def test_baseline_predict_shape(self, sample_binary_data):
+        X, y = sample_binary_data
+        model = OverUnderBaseline(stat_type="goals", line=2.5)
         model.fit(X, y)
         preds = model.predict(X)
         assert len(preds) == len(X)
 
-    @pytest.mark.parametrize("model_cls,kwargs", [
-        (MeanBaseline, {"target_name": "goals"}),
-        (XGBoostGoals, {}),
-    ])
-    def test_predict_non_negative(self, model_cls, kwargs, sample_regression_data):
-        """Goals and cards predictions must be non-negative."""
-        X, y = sample_regression_data
-        model = model_cls(**kwargs)
+    def test_xgboost_predict_shape(self, sample_binary_data):
+        X, y = sample_binary_data
+        model = XGBoostOverUnder(stat_type="goals", line=2.5)
         model.fit(X, y)
         preds = model.predict(X)
-        assert (preds >= 0).all()
+        assert len(preds) == len(X)
 
-    def test_mean_baseline_predicts_mean(self, sample_regression_data):
-        X, y = sample_regression_data
-        model = MeanBaseline(target_name="goals")
+    def test_predict_binary_values(self, sample_binary_data):
+        X, y = sample_binary_data
+        model = XGBoostOverUnder(stat_type="goals", line=2.5)
         model.fit(X, y)
         preds = model.predict(X)
-        np.testing.assert_allclose(preds, y.mean(), atol=1e-5)
+        assert set(preds).issubset({0, 1})
 
-    def test_regressor_no_predict_proba(self, sample_regression_data):
-        X, y = sample_regression_data
-        model = MeanBaseline(target_name="test")
+    def test_predict_proba_shape(self, sample_binary_data):
+        """predict_proba must return shape (n_samples, 2) with probs summing to ~1."""
+        X, y = sample_binary_data
+        model = XGBoostOverUnder(stat_type="goals", line=2.5)
         model.fit(X, y)
-        with pytest.raises(NotImplementedError):
-            model.predict_proba(X)
+        proba = model.predict_proba(X)
+
+        assert proba.shape == (len(X), 2)
+        np.testing.assert_allclose(proba.sum(axis=1), 1.0, atol=1e-5)
+        assert (proba >= 0).all()
+
+    def test_baseline_predict_proba_shape(self, sample_binary_data):
+        X, y = sample_binary_data
+        model = OverUnderBaseline(stat_type="goals", line=2.5)
+        model.fit(X, y)
+        proba = model.predict_proba(X)
+
+        assert proba.shape == (len(X), 2)
+        np.testing.assert_allclose(proba.sum(axis=1), 1.0, atol=1e-5)
+
+    def test_feature_importance(self, sample_binary_data):
+        X, y = sample_binary_data
+        model = XGBoostOverUnder(stat_type="goals", line=2.5)
+        model.fit(X, y)
+        importance = model.get_feature_importance()
+
+        assert isinstance(importance, pd.DataFrame)
+        assert "feature" in importance.columns
+        assert "importance" in importance.columns
+        assert len(importance) == X.shape[1]
+
+    def test_metadata_stores_line(self, sample_binary_data):
+        X, y = sample_binary_data
+        model = XGBoostOverUnder(stat_type="cards", line=4.5)
+        model.fit(X, y)
+        assert model.metadata["line"] == 4.5
+        assert model.metadata["stat_type"] == "cards"
+
+    @pytest.mark.parametrize("line", [1.5, 2.5, 3.5])
+    def test_different_lines(self, line, sample_binary_data):
+        X, y = sample_binary_data
+        model = XGBoostOverUnder(stat_type="goals", line=line)
+        model.fit(X, y)
+        preds = model.predict(X)
+        assert len(preds) == len(X)
+        assert set(preds).issubset({0, 1})
+
+
+class TestCalibratedPredictor:
+    """Test CalibratedPredictor wrapper."""
+
+    def test_calibrated_predict_proba_sums_to_one(self, sample_classification_data):
+        X, y = sample_classification_data
+        X_train, X_val = X[:70], X[70:]
+        y_train, y_val = y[:70], y[70:]
+
+        inner = XGBoostWinner()
+        model = CalibratedPredictor(inner, n_classes=3)
+        model.fit(X_train, y_train, X_val, y_val)
+
+        proba = model.predict_proba(X_val)
+        assert proba.shape == (len(X_val), 3)
+        np.testing.assert_allclose(proba.sum(axis=1), 1.0, atol=1e-5)
+        assert (proba >= 0).all()
+
+    def test_calibrated_predict_valid_classes(self, sample_classification_data):
+        X, y = sample_classification_data
+        X_train, X_val = X[:70], X[70:]
+        y_train, y_val = y[:70], y[70:]
+
+        inner = XGBoostWinner()
+        model = CalibratedPredictor(inner, n_classes=3)
+        model.fit(X_train, y_train, X_val, y_val)
+
+        preds = model.predict(X_val)
+        assert set(preds).issubset({"H", "D", "A"})
+
+    def test_calibrated_save_load(self, sample_classification_data):
+        X, y = sample_classification_data
+        X_train, X_val = X[:70], X[70:]
+        y_train, y_val = y[:70], y[70:]
+
+        inner = XGBoostWinner()
+        model = CalibratedPredictor(inner, n_classes=3)
+        model.fit(X_train, y_train, X_val, y_val)
+        original_proba = model.predict_proba(X_val)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "calibrated.joblib"
+            model.save(path)
+            assert path.exists()
+
+            loaded = BasePredictor.load(path)
+            loaded_proba = loaded.predict_proba(X_val)
+
+        np.testing.assert_array_almost_equal(original_proba, loaded_proba)
+
+    def test_calibrated_binary(self, sample_binary_data):
+        X, y = sample_binary_data
+        X_train, X_val = X[:70], X[70:]
+        y_train, y_val = y[:70], y[70:]
+
+        inner = XGBoostOverUnder(stat_type="goals", line=2.5)
+        model = CalibratedPredictor(inner, n_classes=2)
+        model.fit(X_train, y_train, X_val, y_val)
+
+        proba = model.predict_proba(X_val)
+        assert proba.shape == (len(X_val), 2)
+        np.testing.assert_allclose(proba.sum(axis=1), 1.0, atol=1e-5)
+
+    def test_threshold_optimization_returns_valid_thresholds(
+        self, sample_classification_data
+    ):
+        X, y = sample_classification_data
+        X_train, X_val = X[:70], X[70:]
+        y_train, y_val = y[:70], y[70:]
+
+        inner = XGBoostWinner()
+        model = CalibratedPredictor(inner, n_classes=3)
+        model.fit(X_train, y_train, X_val, y_val)
+
+        thresholds = model._thresholds
+        assert thresholds is not None
+        assert len(thresholds) == 3
+        assert thresholds[0] == 1.0  # A multiplier stays 1.0
+        assert thresholds[2] == 1.0  # H multiplier stays 1.0
+        assert thresholds[1] >= 1.0  # D multiplier >= 1.0
+
+    def test_feature_importance_delegates(self, sample_classification_data):
+        X, y = sample_classification_data
+        X_train, X_val = X[:70], X[70:]
+        y_train, y_val = y[:70], y[70:]
+
+        inner = XGBoostWinner()
+        model = CalibratedPredictor(inner, n_classes=3)
+        model.fit(X_train, y_train, X_val, y_val)
+
+        importance = model.get_feature_importance()
+        assert isinstance(importance, pd.DataFrame)
+        assert len(importance) == X.shape[1]
 
 
 class TestModelSaveLoad:
@@ -189,6 +350,7 @@ class TestModelSaveLoad:
         HomeAlwaysWinsBaseline,
         RandomForestWinner,
         XGBoostWinner,
+        LightGBMWinner,
     ])
     def test_classifier_save_load_produces_same_predictions(
         self, model_cls, sample_classification_data
@@ -215,19 +377,27 @@ class TestModelSaveLoad:
         np.testing.assert_array_equal(original_preds, loaded_preds)
         np.testing.assert_array_almost_equal(original_proba, loaded_proba)
 
-    def test_regressor_save_load(self, sample_regression_data):
-        X, y = sample_regression_data
-        model = XGBoostGoals()
+    def test_over_under_save_load(self, sample_binary_data):
+        """Over/under model must save and load correctly."""
+        X, y = sample_binary_data
+        model = XGBoostOverUnder(stat_type="goals", line=2.5)
         model.fit(X, y)
         original_preds = model.predict(X)
+        original_proba = model.predict_proba(X)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "model.joblib"
             model.save(path)
+
+            assert path.exists()
             loaded = BasePredictor.load(path)
             loaded_preds = loaded.predict(X)
+            loaded_proba = loaded.predict_proba(X)
 
-        np.testing.assert_array_almost_equal(original_preds, loaded_preds)
+        np.testing.assert_array_equal(original_preds, loaded_preds)
+        np.testing.assert_array_almost_equal(original_proba, loaded_proba)
+        assert loaded.metadata["line"] == 2.5
+        assert loaded.metadata["stat_type"] == "goals"
 
 
 class TestTemporalCV:
@@ -289,3 +459,4 @@ class TestTemporalCV:
 
         with pytest.raises(ValueError, match="Need at least"):
             list(cv.split(X, seasons))
+

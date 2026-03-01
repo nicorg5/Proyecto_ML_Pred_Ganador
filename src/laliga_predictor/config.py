@@ -105,15 +105,15 @@ class Settings(BaseSettings):
         description="Comma-separated rolling window sizes for feature engineering",
     )
     TRAIN_SEASONS: str = Field(
-        default="1718,1819,1920,2021,2122,2223",
+        default="1718,1819,1920,2021,2122,2223,2324",
         description="Seasons for training set",
     )
     VAL_SEASONS: str = Field(
-        default="2324",
+        default="2425",
         description="Seasons for validation set",
     )
     TEST_SEASONS: str = Field(
-        default="2425",
+        default="2526",
         description="Seasons for test set",
     )
     FEATURE_CACHE_DIR: Path = Field(

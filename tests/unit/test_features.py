@@ -94,7 +94,7 @@ class TestRollingAverageCorrectness:
     def test_rolling_win_rate_range(
         self, synthetic_matches, synthetic_advanced_stats, synthetic_standings
     ):
-        """Win rate must be between 0 and 1."""
+        """Win rate must be between 0 and 1 (excludes difference features)."""
         builder = MatchFeatureBuilder(
             synthetic_matches, synthetic_advanced_stats, synthetic_standings,
             rolling_windows=[3, 5],
@@ -102,7 +102,7 @@ class TestRollingAverageCorrectness:
         dataset = builder.build_dataset()
 
         for col in dataset.columns:
-            if "win_rate" in col:
+            if "win_rate" in col and not col.startswith("diff_"):
                 valid = dataset[col].dropna()
                 assert (valid >= 0).all(), f"{col} has negative values"
                 assert (valid <= 1).all(), f"{col} has values > 1"
@@ -239,6 +239,124 @@ class TestFeatureConsistency:
 
         for col in ["match_id", "match_date", "season_code", "home_team", "away_team"]:
             assert col in dataset.columns, f"Missing metadata column: {col}"
+
+
+class TestNewFeatures:
+    """Test ELO, streak, EMA, difference, and draw features."""
+
+    def test_elo_features_present(
+        self, synthetic_matches, synthetic_advanced_stats, synthetic_standings
+    ):
+        """ELO features should be in the dataset."""
+        builder = MatchFeatureBuilder(
+            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            rolling_windows=[3],
+        )
+        dataset = builder.build_dataset()
+
+        for col in ["h_elo", "a_elo", "elo_diff", "elo_expected_home"]:
+            assert col in dataset.columns, f"Missing ELO feature: {col}"
+
+    def test_elo_before_cutoff_only(
+        self, synthetic_matches, synthetic_advanced_stats, synthetic_standings
+    ):
+        """ELO ratings should only use matches before cutoff date."""
+        builder = MatchFeatureBuilder(
+            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            rolling_windows=[3],
+        )
+        # The ELO history should be keyed by date, and _get_latest_elo
+        # should respect the cutoff
+        first_season = synthetic_matches["season_code"].unique()[0]
+        s1 = synthetic_matches[synthetic_matches["season_code"] == first_season]
+        first_match = s1.sort_values("match_date").iloc[0]
+
+        # For the very first match, no ELO history exists
+        cutoff = first_match["match_date"]
+        h_id = first_match["home_team_id"]
+        elo = builder._get_latest_elo(h_id, cutoff)
+        assert elo is None  # No matches before the first one
+
+    def test_streak_features_present(
+        self, synthetic_matches, synthetic_advanced_stats, synthetic_standings
+    ):
+        """Streak features should be in the dataset."""
+        builder = MatchFeatureBuilder(
+            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            rolling_windows=[3],
+        )
+        dataset = builder.build_dataset()
+
+        for prefix in ["h", "a"]:
+            for stat in ["win_streak", "unbeaten_streak", "scoring_streak", "clean_sheet_streak"]:
+                col = f"{prefix}_{stat}"
+                assert col in dataset.columns, f"Missing streak feature: {col}"
+
+        # Streaks should be non-negative integers
+        for col in dataset.columns:
+            if "streak" in col:
+                valid = dataset[col].dropna()
+                assert (valid >= 0).all(), f"{col} has negative values"
+
+    def test_ema_features_present(
+        self, synthetic_matches, synthetic_advanced_stats, synthetic_standings
+    ):
+        """EMA features should be in the dataset."""
+        builder = MatchFeatureBuilder(
+            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            rolling_windows=[3],
+        )
+        dataset = builder.build_dataset()
+
+        for prefix in ["h", "a"]:
+            for stat in ["ema_goals", "ema_points", "ema_conceded"]:
+                col = f"{prefix}_{stat}"
+                assert col in dataset.columns, f"Missing EMA feature: {col}"
+
+    def test_difference_features_present(
+        self, synthetic_matches, synthetic_advanced_stats, synthetic_standings
+    ):
+        """Difference features should be in the dataset."""
+        builder = MatchFeatureBuilder(
+            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            rolling_windows=[3],
+        )
+        dataset = builder.build_dataset()
+
+        for col in ["diff_win_rate_5", "diff_goals_5", "diff_conceded_5"]:
+            assert col in dataset.columns, f"Missing difference feature: {col}"
+
+    def test_draw_features_present(
+        self, synthetic_matches, synthetic_advanced_stats, synthetic_standings
+    ):
+        """Draw-likelihood and total goals features should be in the dataset."""
+        builder = MatchFeatureBuilder(
+            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            rolling_windows=[3],
+        )
+        dataset = builder.build_dataset()
+
+        for col in ["defensive_similarity_5", "goals_diff_closeness_5",
+                     "form_similarity_5", "h2h_draw_rate",
+                     "h_avg_total_goals_5", "a_avg_total_goals_5",
+                     "avg_combined_total_goals_5"]:
+            assert col in dataset.columns, f"Missing feature: {col}"
+
+    def test_new_feature_count(
+        self, synthetic_matches, synthetic_advanced_stats, synthetic_standings
+    ):
+        """Dataset should have more features after adding new ones."""
+        builder = MatchFeatureBuilder(
+            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            rolling_windows=[3, 5, 10],
+        )
+        dataset = builder.build_dataset()
+
+        meta = {"match_id", "match_date", "season_code", "home_team", "away_team",
+                "target_result", "target_total_goals", "target_total_cards"}
+        feature_count = len([c for c in dataset.columns if c not in meta])
+        # 119 original + 28 new = ~147
+        assert feature_count >= 140, f"Expected >=140 features, got {feature_count}"
 
 
 class TestUtilityFunctions:

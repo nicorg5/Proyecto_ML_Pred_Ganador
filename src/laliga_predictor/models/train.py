@@ -1,11 +1,12 @@
 """
 Training pipeline for La Liga match prediction models.
 
-Trains classifiers (winner) and regressors (goals, cards) with
+Trains classifiers (winner) and over/under classifiers (goals, cards) with
 temporal train/val/test splits.
 """
 
 import logging
+from functools import partial
 from pathlib import Path
 from typing import Optional
 
@@ -13,16 +14,20 @@ import numpy as np
 import pandas as pd
 
 from ..config import get_settings
+from ..features.feature_selection import load_selected_features
 from ..features.feature_store import load_features
 from .base import BasePredictor
 from .classifiers import (
     EnsembleWinner,
     HomeAlwaysWinsBaseline,
+    LightGBMWinner,
     RandomForestWinner,
     XGBoostWinner,
 )
-from .evaluate import evaluate_classifier, evaluate_regressor
-from .regressors import MeanBaseline, XGBoostCards, XGBoostGoals
+from .calibration import CalibratedPredictor
+from .evaluate import evaluate_binary_classifier, evaluate_classifier
+from .over_under import LightGBMOverUnder, OverUnderBaseline, XGBoostOverUnder
+from .tuning import load_tuned_params
 
 logger = logging.getLogger(__name__)
 
@@ -32,22 +37,64 @@ META_COLS = {
     "target_result", "target_total_goals", "target_total_cards",
 }
 
+# Over/Under lines to train
+GOALS_LINES = [1.5, 2.5, 3.5]
+CARDS_LINES = [3.5, 4.5, 5.5]
+
 MODEL_REGISTRY: dict[str, dict[str, type]] = {
     "winner": {
         "baseline": HomeAlwaysWinsBaseline,
         "rf": RandomForestWinner,
         "xgboost": XGBoostWinner,
+        "lightgbm": LightGBMWinner,
         "ensemble": EnsembleWinner,
     },
-    "goals": {
-        "baseline": MeanBaseline,
-        "xgboost": XGBoostGoals,
-    },
-    "cards": {
-        "baseline": MeanBaseline,
-        "xgboost": XGBoostCards,
-    },
 }
+
+# Dynamically register over/under models for each line
+for _line in GOALS_LINES:
+    key = f"goals_over_{_line}"
+    MODEL_REGISTRY[key] = {
+        "baseline": partial(OverUnderBaseline, stat_type="goals", line=_line),
+        "xgboost": partial(XGBoostOverUnder, stat_type="goals", line=_line),
+        "lightgbm": partial(LightGBMOverUnder, stat_type="goals", line=_line),
+    }
+
+for _line in CARDS_LINES:
+    key = f"cards_over_{_line}"
+    MODEL_REGISTRY[key] = {
+        "baseline": partial(OverUnderBaseline, stat_type="cards", line=_line),
+        "xgboost": partial(XGBoostOverUnder, stat_type="cards", line=_line),
+        "lightgbm": partial(LightGBMOverUnder, stat_type="cards", line=_line),
+    }
+
+
+def _target_name_to_registry_key(target: str) -> str:
+    """Map a target name to its MODEL_REGISTRY key."""
+    if target == "result":
+        return "winner"
+    return target
+
+
+def _get_target_col_and_transform(target: str, df: pd.DataFrame):
+    """Get the column and optional binary transform for a target.
+
+    For 'result': uses 'target_result' as-is (multi-class).
+    For 'goals_over_2.5': uses 'target_total_goals' > 2.5 → binary 0/1.
+    For 'cards_over_4.5': uses 'target_total_cards' > 4.5 → binary 0/1.
+    """
+    if target == "result":
+        return "target_result", None
+
+    # Parse over/under target: "goals_over_2.5" → ("total_goals", 2.5)
+    parts = target.split("_over_")
+    if len(parts) == 2:
+        stat = parts[0]  # "goals" or "cards"
+        line = float(parts[1])
+        col = f"target_total_{stat}"
+        return col, line
+
+    raise ValueError(f"Unknown target format: {target}")
 
 
 def prepare_data(
@@ -59,15 +106,23 @@ def prepare_data(
 ) -> tuple:
     """Split features into train/val/test by season.
 
+    For over/under targets, creates binary labels from the continuous values.
+
     Returns:
         (X_train, y_train, X_val, y_val, X_test, y_test)
     """
-    target_col = f"target_{target}"
+    target_col, line = _get_target_col_and_transform(target, df)
 
     # Drop rows with missing target
     df_clean = df.dropna(subset=[target_col])
 
     feature_cols = [c for c in df_clean.columns if c not in META_COLS]
+
+    # Apply feature selection if available
+    selected = load_selected_features(target)
+    if selected is not None:
+        feature_cols = [c for c in selected if c in feature_cols]
+        logger.info(f"Using {len(feature_cols)} selected features for target={target}")
 
     train_mask = df_clean["season_code"].isin(train_seasons)
     val_mask = df_clean["season_code"].isin(val_seasons)
@@ -79,6 +134,18 @@ def prepare_data(
     y_val = df_clean.loc[val_mask, target_col].copy()
     X_test = df_clean.loc[test_mask, feature_cols].copy()
     y_test = df_clean.loc[test_mask, target_col].copy()
+
+    # Apply binary transform for over/under targets
+    if line is not None:
+        y_train = (y_train > line).astype(int)
+        y_val = (y_val > line).astype(int)
+        y_test = (y_test > line).astype(int)
+        logger.info(
+            f"Binary target (>{line}): "
+            f"train over_rate={y_train.mean():.2%}, "
+            f"val over_rate={y_val.mean():.2%}, "
+            f"test over_rate={y_test.mean():.2%}"
+        )
 
     # Fill NaN features with median (from training set only)
     medians = X_train.median()
@@ -93,6 +160,11 @@ def prepare_data(
     return X_train, y_train, X_val, y_val, X_test, y_test
 
 
+def _is_over_under_target(target: str) -> bool:
+    """Check if a target is an over/under binary classification target."""
+    return "_over_" in target
+
+
 def train_model(
     target: str,
     model_name: str,
@@ -105,7 +177,7 @@ def train_model(
     """Train a single model for a target.
 
     Args:
-        target: "result", "total_goals", or "total_cards"
+        target: "result", "goals_over_2.5", "cards_over_4.5", etc.
         model_name: Model key from MODEL_REGISTRY
         df: Feature DataFrame
         train_seasons: Seasons for training
@@ -126,21 +198,25 @@ def train_model(
         df, target, train_s, val_s, test_s
     )
 
-    # Map target name to registry key
-    registry_key = {
-        "result": "winner",
-        "total_goals": "goals",
-        "total_cards": "cards",
-    }.get(target, target)
-
-    model_cls = MODEL_REGISTRY.get(registry_key, {}).get(model_name)
-    if model_cls is None:
+    registry_key = _target_name_to_registry_key(target)
+    model_factory = MODEL_REGISTRY.get(registry_key, {}).get(model_name)
+    if model_factory is None:
         raise ValueError(f"Unknown model: target={target}, model={model_name}")
 
-    if model_name == "baseline" and target in ("goals", "cards"):
-        model = model_cls(target_name=target)
+    # Instantiate model, applying tuned params if available
+    tuned = load_tuned_params(target)
+    if tuned and model_name == "xgboost":
+        best_params = tuned.get("best_params", {})
+        logger.info(f"Applying tuned params for {target}: {best_params}")
+        model = model_factory(**best_params)
     else:
-        model = model_cls()
+        model = model_factory()
+
+    # Wrap non-baseline models with calibration
+    is_baseline = model_name == "baseline"
+    if not is_baseline and len(X_val) > 0:
+        n_classes = 3 if target == "result" else 2
+        model = CalibratedPredictor(model, n_classes=n_classes)
 
     logger.info(f"Training {model.name} for target={target}...")
     model.fit(X_train, y_train, X_val, y_val)
@@ -149,6 +225,7 @@ def train_model(
     metrics: dict = {"model": model.name, "target": target}
 
     if target == "result":
+        # Multi-class classification (winner)
         if len(y_val) > 0:
             val_metrics = evaluate_classifier(model, X_val, y_val)
             metrics["val"] = val_metrics
@@ -163,18 +240,23 @@ def train_model(
                 f"  Test: accuracy={test_metrics['accuracy']:.3f}, "
                 f"f1_macro={test_metrics['f1_macro']:.3f}"
             )
-    else:
+    elif _is_over_under_target(target):
+        # Binary classification (over/under)
         if len(y_val) > 0:
-            val_metrics = evaluate_regressor(model, X_val, y_val)
+            val_metrics = evaluate_binary_classifier(model, X_val, y_val)
             metrics["val"] = val_metrics
             logger.info(
-                f"  Val: rmse={val_metrics['rmse']:.3f}, mae={val_metrics['mae']:.3f}"
+                f"  Val: accuracy={val_metrics['accuracy']:.3f}, "
+                f"f1={val_metrics['f1']:.3f}, "
+                f"auc_roc={val_metrics['auc_roc']:.3f}"
             )
         if len(y_test) > 0:
-            test_metrics = evaluate_regressor(model, X_test, y_test)
+            test_metrics = evaluate_binary_classifier(model, X_test, y_test)
             metrics["test"] = test_metrics
             logger.info(
-                f"  Test: rmse={test_metrics['rmse']:.3f}, mae={test_metrics['mae']:.3f}"
+                f"  Test: accuracy={test_metrics['accuracy']:.3f}, "
+                f"f1={test_metrics['f1']:.3f}, "
+                f"auc_roc={test_metrics['auc_roc']:.3f}"
             )
 
     # Save model
@@ -193,17 +275,21 @@ def train_all(
 
     Returns dict of {target: {model_name: metrics}}.
     """
-    targets = targets or ["result", "total_goals", "total_cards"]
+    if targets is None:
+        targets = ["result"]
+        targets += [f"goals_over_{l}" for l in GOALS_LINES]
+        targets += [f"cards_over_{l}" for l in CARDS_LINES]
+
     all_results: dict = {}
 
     for target in targets:
-        target_key = "winner" if target == "result" else target.replace("total_", "")
-        available_models = list(MODEL_REGISTRY.get(target_key, {}).keys())
+        registry_key = _target_name_to_registry_key(target)
+        available_models = list(MODEL_REGISTRY.get(registry_key, {}).keys())
         models_to_train = model_names or available_models
 
         all_results[target] = {}
         for model_name in models_to_train:
-            if model_name not in MODEL_REGISTRY.get(target_key, {}):
+            if model_name not in MODEL_REGISTRY.get(registry_key, {}):
                 continue
             _, metrics = train_model(target, model_name, df)
             all_results[target][model_name] = metrics
@@ -224,13 +310,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train La Liga prediction models")
     parser.add_argument(
         "--target",
-        choices=["winner", "goals", "cards", "all"],
+        choices=["winner", "goals-ou", "cards-ou", "all"],
         default="all",
         help="Which target to train (default: all)",
     )
     parser.add_argument(
         "--model",
-        choices=["baseline", "rf", "xgboost", "ensemble", "all"],
+        choices=["baseline", "rf", "xgboost", "lightgbm", "ensemble", "all"],
         default="all",
         help="Which model to train (default: all)",
     )
@@ -247,12 +333,12 @@ def main() -> None:
     features_path = args.features or str(settings.FEATURE_CACHE_DIR / "features.parquet")
     df = load_features(features_path)
 
-    # Map CLI target names to internal names
+    # Map CLI target names to internal target list
     target_map = {
         "winner": ["result"],
-        "goals": ["total_goals"],
-        "cards": ["total_cards"],
-        "all": ["result", "total_goals", "total_cards"],
+        "goals-ou": [f"goals_over_{l}" for l in GOALS_LINES],
+        "cards-ou": [f"cards_over_{l}" for l in CARDS_LINES],
+        "all": None,  # train_all will use all targets
     }
     targets = target_map[args.target]
     model_names = None if args.model == "all" else [args.model]
@@ -270,15 +356,18 @@ def main() -> None:
     for target, models in results.items():
         for model_name, metrics in models.items():
             test = metrics.get("test", {})
-            if "accuracy" in test:
+            if "accuracy" in test and "f1_macro" in test:
+                # Multi-class (winner)
                 logger.info(
                     f"  {target}/{model_name}: "
                     f"accuracy={test['accuracy']:.3f}, f1={test['f1_macro']:.3f}"
                 )
-            elif "rmse" in test:
+            elif "accuracy" in test and "auc_roc" in test:
+                # Binary (over/under)
                 logger.info(
                     f"  {target}/{model_name}: "
-                    f"rmse={test['rmse']:.3f}, mae={test['mae']:.3f}"
+                    f"accuracy={test['accuracy']:.3f}, "
+                    f"f1={test['f1']:.3f}, AUC={test['auc_roc']:.3f}"
                 )
 
     # Save results summary

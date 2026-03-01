@@ -13,7 +13,10 @@ from sklearn.metrics import (
     log_loss,
     mean_absolute_error,
     mean_squared_error,
+    precision_score,
     r2_score,
+    recall_score,
+    roc_auc_score,
 )
 
 from .base import BasePredictor
@@ -67,6 +70,49 @@ def evaluate_classifier(
     return metrics
 
 
+def evaluate_binary_classifier(
+    model: BasePredictor, X: pd.DataFrame, y_true: pd.Series
+) -> dict:
+    """Evaluate a binary classifier (over/under) on a dataset.
+
+    Args:
+        model: Trained binary classifier
+        X: Feature matrix
+        y_true: Binary labels (0=under, 1=over)
+
+    Returns dict with: accuracy, f1, precision, recall, auc_roc, log_loss.
+    """
+    y_pred = model.predict(X)
+    y_proba = model.predict_proba(X)
+
+    metrics: dict = {
+        "accuracy": float(accuracy_score(y_true, y_pred)),
+        "f1": float(f1_score(y_true, y_pred, zero_division=0)),
+        "precision": float(precision_score(y_true, y_pred, zero_division=0)),
+        "recall": float(recall_score(y_true, y_pred, zero_division=0)),
+    }
+
+    # AUC-ROC (use probability of the positive class = over)
+    try:
+        # y_proba[:, 1] = P(over)
+        p_over = y_proba[:, 1] if y_proba.ndim == 2 else y_proba
+        metrics["auc_roc"] = float(roc_auc_score(y_true, p_over))
+    except Exception:
+        metrics["auc_roc"] = 0.5
+
+    # Log loss
+    try:
+        metrics["log_loss"] = float(log_loss(y_true, y_proba))
+    except Exception:
+        metrics["log_loss"] = None
+
+    # Class distribution info
+    metrics["over_rate_true"] = float(y_true.mean())
+    metrics["over_rate_pred"] = float(np.mean(y_pred))
+
+    return metrics
+
+
 def evaluate_regressor(
     model: BasePredictor, X: pd.DataFrame, y_true: pd.Series
 ) -> dict:
@@ -105,7 +151,8 @@ def print_evaluation_report(results: dict) -> None:
             val = metrics.get("val", {})
 
             print(f"\n  Model: {model_name}")
-            if "accuracy" in test:
+            if "f1_macro" in test:
+                # Multi-class (winner)
                 print(f"    Test  - Accuracy: {test['accuracy']:.3f}, "
                       f"F1 Macro: {test['f1_macro']:.3f}, "
                       f"Log Loss: {test.get('log_loss', 'N/A')}")
@@ -117,6 +164,13 @@ def print_evaluation_report(results: dict) -> None:
                     acc = test.get(f"accuracy_{cls}")
                     if acc is not None:
                         print(f"    Class {cls}: {acc:.3f}")
+            elif "auc_roc" in test:
+                # Binary (over/under)
+                print(f"    Test  - Accuracy: {test['accuracy']:.3f}, "
+                      f"F1: {test['f1']:.3f}, AUC: {test['auc_roc']:.3f}")
+                if val:
+                    print(f"    Val   - Accuracy: {val['accuracy']:.3f}, "
+                          f"F1: {val['f1']:.3f}, AUC: {val['auc_roc']:.3f}")
             elif "rmse" in test:
                 print(f"    Test  - RMSE: {test['rmse']:.3f}, "
                       f"MAE: {test['mae']:.3f}, R2: {test['r2']:.3f}")

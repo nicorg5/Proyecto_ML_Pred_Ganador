@@ -158,6 +158,11 @@ TEAM_NAME_MAP: dict[str, dict[str, str]] = {
         "match_history": "Malaga",
         "espn": "Málaga",
     },
+    "Real Oviedo": {
+        "fbref": "Real Oviedo",
+        "match_history": "Oviedo",
+        "espn": "Real Oviedo",
+    },
     "Racing Santander": {
         "fbref": "Racing Santander",
         "match_history": "Santander",

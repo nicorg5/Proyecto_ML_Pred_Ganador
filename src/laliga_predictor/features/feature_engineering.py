@@ -79,6 +79,9 @@ class MatchFeatureBuilder:
         # Precompute standings lookup: (season_code, team_id, match_week) -> row
         self._standings_lookup = self._build_standings_lookup()
 
+        # Precompute ELO ratings for all teams
+        self._elo_history = self._compute_elo_ratings()
+
     def _build_team_history(self) -> pd.DataFrame:
         """Build a per-team match history with stats from each team's perspective."""
         rows = []
@@ -155,6 +158,224 @@ class MatchFeatureBuilder:
             lookup[key].sort(key=lambda x: x[0])
 
         return lookup
+
+    def _compute_elo_ratings(
+        self, k: float = 20.0, home_adv: float = 50.0, initial: float = 1500.0
+    ) -> dict[int, list[tuple[pd.Timestamp, float]]]:
+        """Compute ELO ratings for all teams, match by match.
+
+        Returns dict: team_id -> [(match_date, elo_before_match), ...]
+        sorted by match_date. Each entry records the rating BEFORE that match.
+        """
+        elo: dict[int, float] = {}
+        history: dict[int, list[tuple[pd.Timestamp, float]]] = {}
+
+        for _, m in self.matches.iterrows():
+            h_id = m["home_team_id"]
+            a_id = m["away_team_id"]
+            date = m["match_date"]
+
+            h_elo = elo.get(h_id, initial)
+            a_elo = elo.get(a_id, initial)
+
+            # Record pre-match ratings
+            history.setdefault(h_id, []).append((date, h_elo))
+            history.setdefault(a_id, []).append((date, a_elo))
+
+            # Expected scores (with home advantage)
+            exp_h = 1.0 / (1.0 + 10 ** ((a_elo - (h_elo + home_adv)) / 400.0))
+            exp_a = 1.0 - exp_h
+
+            # Actual scores
+            result = m["result"]
+            if result == "H":
+                s_h, s_a = 1.0, 0.0
+            elif result == "A":
+                s_h, s_a = 0.0, 1.0
+            else:
+                s_h, s_a = 0.5, 0.5
+
+            # Update ratings
+            elo[h_id] = h_elo + k * (s_h - exp_h)
+            elo[a_id] = a_elo + k * (s_a - exp_a)
+
+        return history
+
+    def _elo_features(
+        self, home_id: int, away_id: int, cutoff: pd.Timestamp
+    ) -> dict:
+        """ELO rating features for a match."""
+        h_elo = self._get_latest_elo(home_id, cutoff)
+        a_elo = self._get_latest_elo(away_id, cutoff)
+
+        if h_elo is not None and a_elo is not None:
+            diff = h_elo - a_elo
+            exp_home = 1.0 / (1.0 + 10 ** (-diff / 400.0))
+        else:
+            diff = None
+            exp_home = None
+
+        return {
+            "h_elo": h_elo,
+            "a_elo": a_elo,
+            "elo_diff": diff,
+            "elo_expected_home": exp_home,
+        }
+
+    def _get_latest_elo(self, team_id: int, cutoff: pd.Timestamp) -> Optional[float]:
+        """Get the most recent ELO rating before cutoff."""
+        entries = self._elo_history.get(team_id, [])
+        latest = None
+        for date, elo in entries:
+            if date < cutoff:
+                latest = elo
+            else:
+                break
+        return latest
+
+    def _streak_features(self, team_hist: pd.DataFrame, prefix: str) -> dict:
+        """Compute current streak features (counted backwards from most recent)."""
+        if len(team_hist) == 0:
+            return {
+                f"{prefix}_win_streak": 0,
+                f"{prefix}_unbeaten_streak": 0,
+                f"{prefix}_scoring_streak": 0,
+                f"{prefix}_clean_sheet_streak": 0,
+            }
+
+        win_streak = 0
+        for i in range(len(team_hist) - 1, -1, -1):
+            if team_hist.iloc[i]["win"] == 1:
+                win_streak += 1
+            else:
+                break
+
+        unbeaten_streak = 0
+        for i in range(len(team_hist) - 1, -1, -1):
+            row = team_hist.iloc[i]
+            if row["win"] == 1 or row["draw"] == 1:
+                unbeaten_streak += 1
+            else:
+                break
+
+        scoring_streak = 0
+        for i in range(len(team_hist) - 1, -1, -1):
+            if team_hist.iloc[i]["goals_scored"] > 0:
+                scoring_streak += 1
+            else:
+                break
+
+        clean_sheet_streak = 0
+        for i in range(len(team_hist) - 1, -1, -1):
+            if team_hist.iloc[i]["clean_sheet"] == 1:
+                clean_sheet_streak += 1
+            else:
+                break
+
+        return {
+            f"{prefix}_win_streak": win_streak,
+            f"{prefix}_unbeaten_streak": unbeaten_streak,
+            f"{prefix}_scoring_streak": scoring_streak,
+            f"{prefix}_clean_sheet_streak": clean_sheet_streak,
+        }
+
+    def _ema_features(
+        self, team_hist: pd.DataFrame, prefix: str, alpha: float = 0.3
+    ) -> dict:
+        """Exponential moving average features (more weight on recent matches)."""
+        if len(team_hist) < 2:
+            return {
+                f"{prefix}_ema_goals": None,
+                f"{prefix}_ema_points": None,
+                f"{prefix}_ema_conceded": None,
+            }
+
+        goals_ema = team_hist["goals_scored"].ewm(alpha=alpha, adjust=False).mean().iloc[-1]
+        points_ema = team_hist["points"].ewm(alpha=alpha, adjust=False).mean().iloc[-1]
+        conceded_ema = team_hist["goals_conceded"].ewm(alpha=alpha, adjust=False).mean().iloc[-1]
+
+        return {
+            f"{prefix}_ema_goals": float(goals_ema),
+            f"{prefix}_ema_points": float(points_ema),
+            f"{prefix}_ema_conceded": float(conceded_ema),
+        }
+
+    def _difference_features(
+        self, home_hist: pd.DataFrame, away_hist: pd.DataFrame, n: int = 5
+    ) -> dict:
+        """Direct differences between home and away team's recent form."""
+        h_last = home_hist.tail(n)
+        a_last = away_hist.tail(n)
+
+        h_win_rate = h_last["win"].mean() if len(h_last) > 0 else 0
+        a_win_rate = a_last["win"].mean() if len(a_last) > 0 else 0
+        h_goals = h_last["goals_scored"].mean() if len(h_last) > 0 else 0
+        a_goals = a_last["goals_scored"].mean() if len(a_last) > 0 else 0
+        h_conc = h_last["goals_conceded"].mean() if len(h_last) > 0 else 0
+        a_conc = a_last["goals_conceded"].mean() if len(a_last) > 0 else 0
+
+        return {
+            "diff_win_rate_5": h_win_rate - a_win_rate,
+            "diff_goals_5": h_goals - a_goals,
+            "diff_conceded_5": h_conc - a_conc,
+        }
+
+    def _total_goals_features(
+        self, home_hist: pd.DataFrame, away_hist: pd.DataFrame, n: int = 5
+    ) -> dict:
+        """Total goals features useful for over/under prediction."""
+        h_last = home_hist.tail(n)
+        a_last = away_hist.tail(n)
+
+        h_total = None
+        a_total = None
+        combined = None
+
+        if len(h_last) > 0:
+            h_total = float((h_last["goals_scored"] + h_last["goals_conceded"]).mean())
+        if len(a_last) > 0:
+            a_total = float((a_last["goals_scored"] + a_last["goals_conceded"]).mean())
+        if h_total is not None and a_total is not None:
+            combined = (h_total + a_total) / 2
+
+        return {
+            "h_avg_total_goals_5": h_total,
+            "a_avg_total_goals_5": a_total,
+            "avg_combined_total_goals_5": combined,
+        }
+
+    def _draw_likelihood_features(
+        self, home_hist: pd.DataFrame, away_hist: pd.DataFrame, n: int = 5
+    ) -> dict:
+        """Features that indicate draw likelihood."""
+        h_last = home_hist.tail(n)
+        a_last = away_hist.tail(n)
+
+        # Defensive similarity: |avg_conceded_h - avg_conceded_a|
+        if len(h_last) > 0 and len(a_last) > 0:
+            h_conc = h_last["goals_conceded"].mean()
+            a_conc = a_last["goals_conceded"].mean()
+            defensive_sim = 1.0 / (1.0 + abs(h_conc - a_conc))
+
+            # Goals diff closeness: how close are their scoring rates
+            h_goals = h_last["goals_scored"].mean()
+            a_goals = a_last["goals_scored"].mean()
+            goals_closeness = 1.0 / (1.0 + abs(h_goals - a_goals))
+
+            # Form similarity: how similar are their point rates
+            h_pts = h_last["points"].mean()
+            a_pts = a_last["points"].mean()
+            form_sim = 1.0 / (1.0 + abs(h_pts - a_pts))
+        else:
+            defensive_sim = None
+            goals_closeness = None
+            form_sim = None
+
+        return {
+            "defensive_similarity_5": defensive_sim,
+            "goals_diff_closeness_5": goals_closeness,
+            "form_similarity_5": form_sim,
+        }
 
     def build_dataset(self) -> pd.DataFrame:
         """Build complete feature matrix for all matches.
@@ -276,6 +497,33 @@ class MatchFeatureBuilder:
 
         # --- F. Contextual features ---
         features.update(self._contextual_features(match, home_hist, away_hist))
+
+        # --- G. ELO rating features ---
+        features.update(self._elo_features(home_id, away_id, cutoff))
+
+        # --- H. Streak features ---
+        features.update(self._streak_features(home_hist, "h"))
+        features.update(self._streak_features(away_hist, "a"))
+
+        # --- I. EMA features ---
+        features.update(self._ema_features(home_hist, "h"))
+        features.update(self._ema_features(away_hist, "a"))
+
+        # --- J. Difference features ---
+        features.update(self._difference_features(home_hist, away_hist))
+
+        # --- K. Total goals features (for O/U) ---
+        features.update(self._total_goals_features(home_hist, away_hist))
+
+        # --- L. Draw-likelihood features ---
+        features.update(self._draw_likelihood_features(home_hist, away_hist))
+
+        # --- M. H2H draw rate ---
+        h2h_matches = features.get("h2h_total_matches", 0)
+        h2h_draws = features.get("h2h_draws", 0)
+        features["h2h_draw_rate"] = (
+            h2h_draws / h2h_matches if h2h_matches > 0 else None
+        )
 
         # --- Targets ---
         if include_targets:

@@ -1,10 +1,12 @@
 {
-  "name": "XGBoost",
+  "name": "XGBoost_O/U_cards_5.5",
   "model_type": "classifier",
   "feature_count": 119,
-  "saved_at": "2026-02-15T20:21:07.529722",
+  "saved_at": "2026-02-15T20:21:17.392807",
+  "line": 5.5,
+  "stat_type": "cards",
   "params": {
-    "objective": "multi:softprob",
+    "objective": "binary:logistic",
     "base_score": null,
     "booster": null,
     "callbacks": null,
@@ -14,7 +16,7 @@
     "device": null,
     "early_stopping_rounds": 50,
     "enable_categorical": false,
-    "eval_metric": "mlogloss",
+    "eval_metric": "logloss",
     "feature_types": null,
     "feature_weights": null,
     "gamma": null,
@@ -43,7 +45,7 @@
     "subsample": 0.8,
     "tree_method": null,
     "validate_parameters": null,
-    "verbosity": 0,
-    "num_class": 3
-  }
+    "verbosity": 0
+  },
+  "best_iteration": 18
 }

@@ -1,4 +1,4 @@
-.PHONY: help install install-dev sync test test-cov lint format pre-commit scrape train db-init db-migrate db-reset clean docker-up docker-down sd-create-db sd-init sd-init-drop sd-etl sd-etl-mh sd-etl-espn sd-etl-fbref-schedule sd-etl-fbref-stats sd-etl-fbref-stats-type sd-etl-players sd-etl-shots sd-etl-standings sd-etl-season sd-validate sd-status ml-features ml-train ml-train-winner ml-train-goals ml-train-cards ml-predict ml-pipeline
+.PHONY: help install install-dev sync test test-cov lint format pre-commit scrape train db-init db-migrate db-reset clean docker-up docker-down sd-create-db sd-init sd-init-drop sd-etl sd-etl-mh sd-etl-espn sd-etl-fbref-schedule sd-etl-fbref-stats sd-etl-fbref-stats-type sd-etl-players sd-etl-shots sd-etl-standings sd-etl-season sd-validate sd-status ml-features ml-select-features ml-tune ml-train ml-train-winner ml-train-goals ml-train-cards ml-predict ml-predict-jornada ml-update ml-pipeline
 
 # Default target
 .DEFAULT_GOAL := help
@@ -108,7 +108,15 @@ ml-features: ## Build ML features from database -> data/processed/features.parqu
 	@echo "$(BLUE)Building ML features from database...$(NC)"
 	uv run python -m src.laliga_predictor.features.feature_engineering
 
-ml-train: ## Train all models for all targets (winner + goals + cards)
+ml-select-features: ## Run feature selection (importance + correlation filtering)
+	@echo "$(BLUE)Running feature selection...$(NC)"
+	uv run python -m src.laliga_predictor.features.feature_selection --target all
+
+ml-tune: ## Run Optuna hyperparameter tuning (TARGET=all|winner|goals-ou|cards-ou)
+	@echo "$(BLUE)Running Optuna hyperparameter tuning...$(NC)"
+	uv run python -m src.laliga_predictor.models.tuning --target $(or $(TARGET),all)
+
+ml-train: ## Train ML models (TARGET=all|winner|goals-ou|cards-ou MODEL=all)
 	@echo "$(BLUE)Training all ML models...$(NC)"
 	uv run python -m src.laliga_predictor.models.train --target all --model all
 
@@ -128,7 +136,18 @@ ml-predict: ## Predict a match (HOME=team AWAY=team DATE=YYYY-MM-DD)
 	@echo "$(BLUE)Predicting match: $(HOME) vs $(AWAY) on $(DATE)...$(NC)"
 	uv run python -m src.laliga_predictor.models.predict --home "$(HOME)" --away "$(AWAY)" --date "$(DATE)"
 
-ml-pipeline: ml-features ml-train ## Run full ML pipeline (features + train all)
+ml-predict-jornada: ## Predict a full jornada (JORNADA=N SEASON=2526)
+	@echo "$(BLUE)Predicting jornada $(JORNADA) (season $(or $(SEASON),2526))...$(NC)"
+	uv run python -m src.laliga_predictor.models.predict_jornada --jornada $(JORNADA) $(if $(SEASON),--season $(SEASON))
+
+ml-update: ## Update DB + features for current season (SEASON=2526)
+	@echo "$(BLUE)Updating data for season $(or $(SEASON),2526)...$(NC)"
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step match-history --seasons $(or $(SEASON),2526) --force
+	uv run python -m src.laliga_predictor.data.etl_soccerdata --step standings --seasons $(or $(SEASON),2526) --force
+	uv run python -m src.laliga_predictor.features.feature_engineering
+	@echo "$(GREEN)Data updated! Ready to predict.$(NC)"
+
+ml-pipeline: ml-features ml-select-features ml-train ## Run full ML pipeline (features + select + train)
 	@echo "$(GREEN)ML pipeline complete!$(NC)"
 
 # ===================================

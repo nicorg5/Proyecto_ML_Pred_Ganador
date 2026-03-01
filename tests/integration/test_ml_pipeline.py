@@ -14,8 +14,8 @@ import pytest
 from src.laliga_predictor.features.feature_engineering import MatchFeatureBuilder
 from src.laliga_predictor.features.feature_store import load_features, save_features
 from src.laliga_predictor.models.classifiers import RandomForestWinner, XGBoostWinner
-from src.laliga_predictor.models.evaluate import evaluate_classifier, evaluate_regressor
-from src.laliga_predictor.models.regressors import MeanBaseline, XGBoostGoals
+from src.laliga_predictor.models.evaluate import evaluate_binary_classifier, evaluate_classifier
+from src.laliga_predictor.models.over_under import OverUnderBaseline, XGBoostOverUnder
 from src.laliga_predictor.models.train import META_COLS, prepare_data
 
 
@@ -58,13 +58,13 @@ class TestFeatureToTrainPipeline:
         assert len(preds) == len(X_test)
         assert set(preds).issubset({"H", "D", "A"})
 
-    def test_features_to_regressor(
+    def test_features_to_over_under(
         self,
         synthetic_3season_matches,
         synthetic_3season_advanced,
         synthetic_3season_standings,
     ):
-        """Build features from synthetic data, then train a regressor."""
+        """Build features from synthetic data, then train an over/under model."""
         builder = MatchFeatureBuilder(
             synthetic_3season_matches,
             synthetic_3season_advanced,
@@ -74,18 +74,18 @@ class TestFeatureToTrainPipeline:
         dataset = builder.build_dataset()
 
         X_train, y_train, X_val, y_val, X_test, y_test = prepare_data(
-            dataset, "total_goals",
+            dataset, "goals_over_2.5",
             train_seasons=["2223"],
             val_seasons=["2324"],
             test_seasons=["2425"],
         )
 
-        model = MeanBaseline(target_name="goals")
+        model = XGBoostOverUnder(stat_type="goals", line=2.5)
         model.fit(X_train, y_train)
 
         preds = model.predict(X_test)
         assert len(preds) == len(X_test)
-        assert (preds >= 0).all()
+        assert set(preds).issubset({0, 1})
 
 
 class TestEvaluationPipeline:
@@ -123,7 +123,7 @@ class TestEvaluationPipeline:
         assert 0 <= metrics["accuracy"] <= 1
         assert 0 <= metrics["f1_macro"] <= 1
 
-    def test_regressor_evaluation(
+    def test_over_under_evaluation(
         self,
         synthetic_3season_matches,
         synthetic_3season_advanced,
@@ -138,22 +138,21 @@ class TestEvaluationPipeline:
         dataset = builder.build_dataset()
 
         X_train, y_train, X_val, y_val, _, _ = prepare_data(
-            dataset, "total_goals",
+            dataset, "goals_over_2.5",
             train_seasons=["2223"],
             val_seasons=["2324"],
             test_seasons=["2425"],
         )
 
-        model = MeanBaseline(target_name="goals")
+        model = XGBoostOverUnder(stat_type="goals", line=2.5)
         model.fit(X_train, y_train)
 
-        metrics = evaluate_regressor(model, X_val, y_val)
+        metrics = evaluate_binary_classifier(model, X_val, y_val)
 
-        assert "rmse" in metrics
-        assert "mae" in metrics
-        assert "r2" in metrics
-        assert metrics["rmse"] >= 0
-        assert metrics["mae"] >= 0
+        assert "accuracy" in metrics
+        assert "f1" in metrics
+        assert "auc_roc" in metrics
+        assert 0 <= metrics["accuracy"] <= 1
 
 
 class TestFeatureStore:
