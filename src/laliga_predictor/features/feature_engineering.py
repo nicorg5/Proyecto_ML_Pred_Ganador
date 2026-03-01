@@ -705,18 +705,6 @@ class MatchFeatureBuilder:
         """Contextual and derived features."""
         cutoff = match["match_date"]
 
-        # Days since last match (rest)
-        h_rest = None
-        a_rest = None
-        if len(home_hist) > 0:
-            last_home = home_hist.iloc[-1]["match_date"]
-            h_rest = (cutoff - last_home).days
-        if len(away_hist) > 0:
-            last_away = away_hist.iloc[-1]["match_date"]
-            a_rest = (cutoff - last_away).days
-
-        rest_adv = _safe_sub(h_rest, a_rest)
-
         # Derby flag
         home_name = match.get("home_team", "")
         away_name = match.get("away_team", "")
@@ -733,9 +721,6 @@ class MatchFeatureBuilder:
         match_week = max(1, len(matches_before) // 10 + 1)
 
         return {
-            "h_days_rest": h_rest,
-            "a_days_rest": a_rest,
-            "rest_advantage": rest_adv,
             "match_week": match_week,
             "is_early_season": 1 if match_week <= 10 else 0,
             "is_late_season": 1 if match_week >= 30 else 0,

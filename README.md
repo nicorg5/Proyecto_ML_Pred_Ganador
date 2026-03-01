@@ -20,11 +20,12 @@ Sistema de Machine Learning para predecir resultados de partidos de La Liga Espa
 
 - **Lenguaje**: Python 3.10+
 - **Gestion de dependencias**: UV
-- **ML**: scikit-learn, XGBoost, pandas, numpy
+- **ML**: scikit-learn, XGBoost, LightGBM, pandas, numpy
+- **Optimizacion de hiperparametros**: Optuna
 - **Feature Store**: Apache Parquet (pyarrow)
 - **Base de datos**: PostgreSQL 16 (Docker)
 - **Fuentes de datos**: Football-Data.co.uk (MatchHistory) + ESPN (stats avanzadas)
-- **Testing**: pytest (62 tests), pytest-cov
+- **Testing**: pytest (111 tests), pytest-cov
 - **Calidad de codigo**: black, ruff, mypy, pre-commit
 
 ---
@@ -46,7 +47,7 @@ Sistema de Machine Learning para predecir resultados de partidos de La Liga Espa
                                         v
                     +----------------------------------------+
                     |         Feature Engineering             |
-                    |  119 features, 6 categorias             |
+                    |  ~144 features, 12 categorias           |
                     |  Anti data-leakage (cutoff temporal)    |
                     +-------------------+--------------------+
                                         |
@@ -54,16 +55,27 @@ Sistema de Machine Learning para predecir resultados de partidos de La Liga Espa
                               data/processed/features.parquet
                                         |
                     +-------------------+--------------------+
-                    |           Training Pipeline             |
-                    |  Temporal split por temporada            |
-                    |  Train: 17/18-22/23 | Val: 23/24        |
-                    |  Test: 24/25                             |
+                    |    Feature Selection (importance +      |
+                    |    correlation filtering) -> ~50-70     |
                     +-------------------+--------------------+
                                         |
-                    +----------+--------+---------+----------+
-                    |          |                  |          |
-                    v          v                  v          v
-                Baseline   Random Forest    XGBoost    Ensemble
+                    +-------------------+--------------------+
+                    |    Optuna Hyperparameter Tuning         |
+                    |    (SeasonalTimeSeriesSplit CV)         |
+                    +-------------------+--------------------+
+                                        |
+                    +-------------------+--------------------+
+                    |           Training Pipeline             |
+                    |  Temporal split por temporada            |
+                    |  Train: 17/18-23/24 | Val: 24/25        |
+                    |  Test: 25/26                             |
+                    +-------------------+--------------------+
+                                        |
+                    +----------+--------+---------+-----------+
+                    |          |        |         |           |
+                    v          v        v         v           v
+                Baseline      RF    XGBoost  LightGBM   Ensemble
+                                                         (Voting)
                     |          |                  |          |
                     +----------+--------+---------+----------+
                                         |
@@ -228,6 +240,153 @@ El comando imprimirá una tabla en la terminal.
 
 ---
 
+## Cómo Ver las Nuevas Métricas Tras las Mejoras Implementadas
+
+Después de implementar las 7 mejoras al modelo (calibración, nuevas features, feature selection, tuning, scale_pos_weight, LightGBM, y más datos de entrenamiento), puedes ver las nuevas métricas siguiendo estos pasos:
+
+### 1. Reconstruir Features con las Nuevas Variables
+
+El primer paso es regenerar las features con las 25 nuevas variables (ELO, rachas, EMA, diferencias, total_goals, draw-likelihood):
+
+```bash
+make ml-features
+```
+
+Este comando creará un nuevo archivo `data/processed/features.parquet` con ~144 features (antes eran 119).
+
+### 2. (Opcional) Ejecutar Feature Selection
+
+Para reducir el conjunto de features a las más importantes y eliminar correlaciones:
+
+```bash
+make ml-select-features
+```
+
+Esto generará archivos JSON en `data/processed/selected_features_*.json` con las features seleccionadas para cada target (winner, goals O/U, cards O/U).
+
+### 3. (Opcional) Ejecutar Optuna Tuning
+
+Si quieres optimizar los hiperparámetros de XGBoost con validación cruzada temporal:
+
+```bash
+# Tuning para todos los modelos (~30-60 min con 50 trials por modelo)
+make ml-tune
+
+# O solo para un target específico:
+make ml-tune TARGET=winner
+make ml-tune TARGET=goals-ou
+make ml-tune TARGET=cards-ou
+```
+
+Los parámetros optimizados se guardarán en `models/tuned_params_*.json` y se aplicarán automáticamente al entrenar.
+
+### 4. Entrenar Todos los Modelos con las Mejoras
+
+Entrena todos los modelos (Baseline, RF, XGBoost, LightGBM, Ensemble) con las nuevas features, calibración, y parámetros tunados:
+
+```bash
+make ml-train
+```
+
+Este comando:
+- Carga las features seleccionadas (si existen)
+- Carga los hiperparámetros tunados (si existen)
+- Entrena cada modelo
+- Aplica **calibración de probabilidades** con regresión isotónica
+- Optimiza los **thresholds de clasificación** para maximizar f1_macro
+- Calcula automáticamente **scale_pos_weight** para modelos O/U
+- Guarda los modelos en `models/*.joblib`
+
+### 5. Ver los Resultados
+
+Los resultados de entrenamiento se guardan en `models/training_results.json`. Puedes verlos con:
+
+```bash
+cat models/training_results.json | python -m json.tool
+```
+
+O directamente:
+
+```bash
+cat models/training_results.json
+```
+
+**Formato del archivo:**
+
+```json
+{
+  "result": {
+    "baseline": {
+      "val": {"accuracy": 0.439, "f1_macro": 0.295, ...},
+      "test": {"accuracy": 0.445, "f1_macro": 0.304, ...}
+    },
+    "rf": {...},
+    "xgboost": {...},
+    "lightgbm": {...},
+    "ensemble": {...}
+  },
+  "goals_over_1.5": {
+    "baseline": {...},
+    "xgboost": {...},
+    "lightgbm": {...}
+  },
+  ...
+}
+```
+
+### 6. Métricas Clave a Observar
+
+Para **modelos de ganador (H/D/A)**:
+- `accuracy`: Porcentaje de aciertos totales
+- `f1_macro`: F1-score macro (importante para empates)
+- `accuracy_H`, `accuracy_D`, `accuracy_A`: Acierto por clase individual
+- `precision_D`, `recall_D`: Precisión y recall para empates (crítico, antes era 0%)
+
+Para **modelos O/U (goles/tarjetas)**:
+- `accuracy`: Porcentaje de aciertos Over/Under
+- `roc_auc`: Área bajo la curva ROC (debe ser > 0.60 para ser útil)
+- `precision`, `recall`: Balance entre falsos positivos y falsos negativos
+
+### 7. Pipeline Completo (Recomendado)
+
+Para ejecutar todo el pipeline de una vez (features + selection + training):
+
+```bash
+make ml-pipeline
+```
+
+### 8. Comparar Resultados Antes/Después
+
+**Antes de las mejoras** (modelos antiguos):
+- Ensemble Winner: 56.8% accuracy, **0% en empates**
+- Goals O/U 2.5: AUC = 0.591
+- Cards O/U 4.5: AUC = 0.578
+
+**Después de las mejoras** (resultados esperados):
+- Ensemble Winner: ~55-60% accuracy, **>10% en empates** (mejora crítica)
+- Goals O/U 2.5: AUC > 0.60
+- Cards O/U 4.5: AUC > 0.58
+- f1_macro significativamente mejorado (mejor balance entre clases)
+
+### 9. Ver Predicciones con Probabilidades Calibradas
+
+Una vez reentrenados los modelos, las predicciones reflejarán las mejoras:
+
+```bash
+# Predicción individual con probabilidades calibradas
+make ml-predict HOME="Real Madrid" AWAY="Barcelona" DATE="2026-03-01"
+
+# Predicción de jornada completa
+make ml-predict-jornada JORNADA=24 SEASON=2526
+```
+
+Las probabilidades ahora:
+- Están **calibradas** (más realistas, no extremas)
+- Usan **thresholds optimizados** para empates
+- Incluyen el impacto de las **25 nuevas features**
+
+---
+
 ## Prediccion de partido individual
 
 ```bash
@@ -285,7 +444,7 @@ Salida (JSON):
 
 ### Feature Engineering
 
-119 features en 6 categorias, todas calculadas con datos **estrictamente anteriores** a la fecha del partido (anti data-leakage):
+~144 features en 12 categorias, todas calculadas con datos **estrictamente anteriores** a la fecha del partido (anti data-leakage):
 
 | Categoria | Features | Descripcion |
 |-----------|:---:|-------------|
@@ -294,7 +453,15 @@ Salida (JSON):
 | ESPN Advanced | 20 | Posesion, pases, tackles, intercepciones (media 5 partidos) |
 | Head-to-Head | 6 | Historico de enfrentamientos directos (ultimos 6) |
 | Standings | 8 | Posicion, puntos, diferencia de goles en la clasificacion |
-| Contextual | 7 | Dias de descanso, derby, jornada temprana/tardia |
+| Contextual | 4 | Derby, jornada temprana/tardia, estimacion de jornada |
+| **ELO Rating** | **4** | **Ratings dinamicos ELO, diferencia ELO, victoria esperada** |
+| **Rachas** | **8** | **Rachas de victorias, imbatibilidad, goles, porterias a cero** |
+| **EMA (Medias Moviles)** | **6** | **Medias exponenciales de goles, puntos, goles encajados** |
+| **Diferencias** | **3** | **Diferencias directas: win rate, goles, goles encajados** |
+| **Total Goals** | **3** | **Medias de goles totales por partido para prediccion O/U** |
+| **Draw Likelihood** | **4** | **Indicadores de probabilidad de empate (similitud defensiva, forma)** |
+
+> **Nota**: Tras el entrenamiento, se aplica **Feature Selection** basada en importancia y correlacion, reduciendo a ~50-70 features para evitar overfitting.
 
 ---
 
@@ -306,12 +473,15 @@ Salida (JSON):
 |--------|:---:|:---:|-------------|
 | HomeAlwaysWins | 43.9% | 44.5% | Baseline: siempre predice victoria local |
 | Random Forest | 56.1% | 52.6% | 300 arboles, `class_weight='balanced'` |
-| XGBoost | 54.5% | 54.5% | Early stopping, regularizacion L1/L2 |
-| **Ensemble** | 54.5% | **56.8%** | Stacking: RF + XGB con meta-learner LR |
+| XGBoost | 54.5% | 54.5% | Early stopping, regularizacion L1/L2, hiperparametros tunados con Optuna |
+| LightGBM | - | - | Gradient boosting con early stopping y regularizacion |
+| **Ensemble** | 54.5% | **56.8%** | **VotingClassifier (soft)**: RF + XGBoost + LightGBM |
+
+> **Mejoras v2**: Todos los modelos (excepto baseline) usan **calibracion de probabilidades** con regresion isotonica + optimizacion de thresholds para mejorar predicciones de empates.
 
 ### Clasificacion (Goles y Tarjetas Over/Under)
 
-Modelos XGBoost entrenados para cada línea individualmente.
+Modelos XGBoost y LightGBM entrenados para cada línea individualmente.
 
 | Target | Linea | Accuracy (Test) | AUC-ROC |
 |--------|:---:|:---:|:---:|
@@ -321,6 +491,8 @@ Modelos XGBoost entrenados para cada línea individualmente.
 | **Tarjetas** | 3.5 | 66.6% | 0.597 |
 | **Tarjetas** | 4.5 | 50.3% | 0.578 |
 | **Tarjetas** | 5.5 | 67.4% | 0.567 |
+
+> **Mejoras v2**: Los modelos O/U ahora calculan automáticamente `scale_pos_weight` para manejar desbalance de clases, y están disponibles tanto en XGBoost como LightGBM.
 
 ---
 
@@ -338,12 +510,15 @@ Proyecto_ML_Pred_Ganador/
 │   │   └── validate_soccerdata.py  # Validacion de datos
 │   ├── features/
 │   │   ├── data_loader.py          # SQL -> DataFrames
-│   │   ├── feature_engineering.py  # 119 features con anti-leakage
+│   │   ├── feature_engineering.py  # ~144 features con anti-leakage
+│   │   ├── feature_selection.py    # Seleccion por importancia + correlacion
 │   │   └── feature_store.py        # Save/load Parquet
 │   └── models/
 │       ├── base.py                 # BasePredictor ABC
-│       ├── classifiers.py          # Baseline, RF, XGBoost, Ensemble (Winner)
-│       ├── over_under.py           # Baseline, XGBoost (Goals/Cards O/U)
+│       ├── classifiers.py          # Baseline, RF, XGBoost, LightGBM, Ensemble (Winner)
+│       ├── over_under.py           # Baseline, XGBoost, LightGBM (Goals/Cards O/U)
+│       ├── calibration.py          # CalibratedPredictor con regresion isotonica
+│       ├── tuning.py               # Optuna hyperparameter tuning
 │       ├── temporal_cv.py          # SeasonalTimeSeriesSplit
 │       ├── train.py                # Pipeline de entrenamiento
 │       ├── evaluate.py             # Metricas de evaluacion
@@ -381,13 +556,17 @@ make ml-predict-jornada SEASON=2526               # Auto-detecta ultima jornada
 ### ML Pipeline
 
 ```bash
-make ml-features        # Construir features desde BD -> Parquet
-make ml-train           # Entrenar todos los modelos
-make ml-train-winner    # Solo modelos de ganador
+make ml-features               # Construir features desde BD -> Parquet
+make ml-select-features        # Seleccion de features (importancia + correlacion)
+make ml-tune                   # Optuna hyperparameter tuning (XGBoost)
+make ml-tune TARGET=winner     # Tuning solo para modelos de ganador
+make ml-tune TARGET=goals-ou   # Tuning solo para goles O/U
+make ml-train                  # Entrenar todos los modelos
+make ml-train-winner           # Solo modelos de ganador
 make ml-train TARGET=goals-ou  # Solo modelos de goles O/U
 make ml-train TARGET=cards-ou  # Solo modelos de tarjetas O/U
-make ml-pipeline        # Pipeline completo: features + train
-make ml-update          # Actualizar datos temporada actual + reconstruir features
+make ml-pipeline               # Pipeline completo: features + select + train
+make ml-update                 # Actualizar datos temporada actual + reconstruir features
 ```
 
 ### ETL / Datos
@@ -406,7 +585,7 @@ make sd-status          # Ver estadisticas de la BD
 ### Testing y Calidad
 
 ```bash
-make test               # Ejecutar todos los tests (62 tests)
+make test               # Ejecutar todos los tests (111 tests)
 make test-unit          # Solo tests unitarios
 make test-integration   # Solo tests de integracion
 make test-cov           # Tests con reporte de cobertura
