@@ -7,7 +7,6 @@ to maximize f1_macro (critical for draw prediction).
 """
 
 import logging
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -36,14 +35,14 @@ class CalibratedPredictor(BasePredictor):
         self.inner_model = inner_model
         self.n_classes = n_classes
         self._calibrators: list[IsotonicRegression] = []
-        self._thresholds: Optional[np.ndarray] = None
+        self._thresholds: np.ndarray | None = None
 
     def fit(
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series,
-        X_val: Optional[pd.DataFrame] = None,
-        y_val: Optional[pd.Series] = None,
+        X_val: pd.DataFrame | None = None,
+        y_val: pd.Series | None = None,
     ) -> "CalibratedPredictor":
         # Train inner model
         self.inner_model.fit(X_train, y_train, X_val, y_val)
@@ -72,12 +71,12 @@ class CalibratedPredictor(BasePredictor):
 
             # Optimize thresholds for multi-class (winner)
             if self.n_classes == 3:
-                self._thresholds = optimize_classification_thresholds(
-                    self, X_val, y_val
-                )
+                self._thresholds = optimize_classification_thresholds(self, X_val, y_val)
                 self.metadata["classification_thresholds"] = self._thresholds.tolist()
-                logger.info(f"Optimized thresholds: A={self._thresholds[0]:.2f}, "
-                            f"D={self._thresholds[1]:.2f}, H={self._thresholds[2]:.2f}")
+                logger.info(
+                    f"Optimized thresholds: A={self._thresholds[0]:.2f}, "
+                    f"D={self._thresholds[1]:.2f}, H={self._thresholds[2]:.2f}"
+                )
         else:
             logger.warning("No validation data provided — skipping calibration")
 
@@ -91,10 +90,9 @@ class CalibratedPredictor(BasePredictor):
             return raw_proba
 
         # Apply isotonic calibration per class
-        calibrated = np.column_stack([
-            self._calibrators[i].predict(raw_proba[:, i])
-            for i in range(self.n_classes)
-        ])
+        calibrated = np.column_stack(
+            [self._calibrators[i].predict(raw_proba[:, i]) for i in range(self.n_classes)]
+        )
 
         # Renormalize so rows sum to 1
         row_sums = calibrated.sum(axis=1, keepdims=True)
@@ -153,6 +151,8 @@ def optimize_classification_thresholds(
             best_f1 = f1
             best_thresholds = thresholds.copy()
 
-    logger.info(f"Threshold optimization: best f1_macro={best_f1:.4f}, "
-                f"D_multiplier={best_thresholds[1]:.2f}")
+    logger.info(
+        f"Threshold optimization: best f1_macro={best_f1:.4f}, "
+        f"D_multiplier={best_thresholds[1]:.2f}"
+    )
     return best_thresholds

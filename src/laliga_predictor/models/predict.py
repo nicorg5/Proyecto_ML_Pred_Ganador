@@ -4,9 +4,7 @@ Prediction pipeline for upcoming La Liga matches.
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
@@ -23,7 +21,7 @@ CARDS_LINES = [3.5, 4.5, 5.5]
 
 
 def load_trained_models(
-    model_dir: Optional[Path] = None,
+    model_dir: Path | None = None,
 ) -> dict[str, BasePredictor]:
     """Load best trained models for each target.
 
@@ -35,8 +33,12 @@ def load_trained_models(
     models: dict[str, BasePredictor] = {}
 
     # Winner model (multi-class)
-    for fname in ["result_ensemble.joblib", "result_xgboost.joblib",
-                  "result_rf.joblib", "result_baseline.joblib"]:
+    for fname in [
+        "result_ensemble.joblib",
+        "result_xgboost.joblib",
+        "result_rf.joblib",
+        "result_baseline.joblib",
+    ]:
         path = model_dir / fname
         if path.exists():
             models["winner"] = BasePredictor.load(path)
@@ -72,8 +74,8 @@ def predict_match(
     home_team: str,
     away_team: str,
     match_date: str,
-    models: Optional[dict[str, BasePredictor]] = None,
-    builder: Optional[MatchFeatureBuilder] = None,
+    models: dict[str, BasePredictor] | None = None,
+    builder: MatchFeatureBuilder | None = None,
 ) -> dict:
     """Predict outcome for a single match.
 
@@ -153,8 +155,8 @@ def predict_match(
         result["predictions"]["winner"] = {
             "predicted_result": str(pred),
             "home_win_prob": round(float(proba[2]), 3),  # H is index 2
-            "draw_prob": round(float(proba[1]), 3),       # D is index 1
-            "away_win_prob": round(float(proba[0]), 3),   # A is index 0
+            "draw_prob": round(float(proba[1]), 3),  # D is index 1
+            "away_win_prob": round(float(proba[0]), 3),  # A is index 0
         }
 
     # Goals Over/Under predictions
@@ -204,11 +206,15 @@ def main() -> None:
     parser.add_argument("--home", type=str, required=True, help="Home team canonical name")
     parser.add_argument("--away", type=str, required=True, help="Away team canonical name")
     parser.add_argument(
-        "--date", type=str, required=True,
+        "--date",
+        type=str,
+        required=True,
         help="Match date (YYYY-MM-DD)",
     )
     parser.add_argument(
-        "--output", type=str, default=None,
+        "--output",
+        type=str,
+        default=None,
         help="Output JSON file path (default: print to stdout)",
     )
 

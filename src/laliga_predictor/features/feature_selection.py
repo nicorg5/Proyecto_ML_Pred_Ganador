@@ -8,7 +8,6 @@ to improve model generalization and reduce overfitting.
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -49,19 +48,29 @@ def select_features(
     # Step 1: Quick XGBoost for importance
     if target_type == "multiclass":
         model = XGBClassifier(
-            n_estimators=100, max_depth=5, learning_rate=0.1,
-            objective="multi:softprob", num_class=3,
-            random_state=settings.RANDOM_STATE, n_jobs=-1, verbosity=0,
+            n_estimators=100,
+            max_depth=5,
+            learning_rate=0.1,
+            objective="multi:softprob",
+            num_class=3,
+            random_state=settings.RANDOM_STATE,
+            n_jobs=-1,
+            verbosity=0,
         )
         from sklearn.preprocessing import LabelEncoder
+
         le = LabelEncoder()
         le.fit(["A", "D", "H"])
         y_enc = le.transform(y_train)
     else:
         model = XGBClassifier(
-            n_estimators=100, max_depth=5, learning_rate=0.1,
+            n_estimators=100,
+            max_depth=5,
+            learning_rate=0.1,
             objective="binary:logistic",
-            random_state=settings.RANDOM_STATE, n_jobs=-1, verbosity=0,
+            random_state=settings.RANDOM_STATE,
+            n_jobs=-1,
+            verbosity=0,
         )
         y_enc = y_train
 
@@ -73,8 +82,10 @@ def select_features(
     kept_features = importances[important_mask].sort_values(ascending=False)
     removed_low = list(importances[~important_mask].index)
 
-    logger.info(f"Importance filter: {len(kept_features)}/{n_original} features kept "
-                f"(threshold={importance_threshold})")
+    logger.info(
+        f"Importance filter: {len(kept_features)}/{n_original} features kept "
+        f"(threshold={importance_threshold})"
+    )
 
     # Step 3: Remove highly correlated features (keep the more important one)
     X_kept = X_train[kept_features.index].fillna(0)
@@ -99,8 +110,10 @@ def select_features(
                 break
 
     selected = [f for f in kept_features.index if f not in removed_corr]
-    logger.info(f"Correlation filter: {len(selected)}/{len(kept_features)} features kept "
-                f"(threshold={correlation_threshold})")
+    logger.info(
+        f"Correlation filter: {len(selected)}/{len(kept_features)} features kept "
+        f"(threshold={correlation_threshold})"
+    )
 
     metadata = {
         "n_original": n_original,
@@ -116,7 +129,7 @@ def select_features(
 
 
 def save_selected_features(
-    features: list[str], metadata: dict, target: str, output_dir: Optional[Path] = None
+    features: list[str], metadata: dict, target: str, output_dir: Path | None = None
 ) -> Path:
     """Save selected features to JSON."""
     settings = get_settings()
@@ -130,7 +143,7 @@ def save_selected_features(
     return path
 
 
-def load_selected_features(target: str, input_dir: Optional[Path] = None) -> Optional[list[str]]:
+def load_selected_features(target: str, input_dir: Path | None = None) -> list[str] | None:
     """Load selected features from JSON. Returns None if file doesn't exist."""
     settings = get_settings()
     in_dir = input_dir or settings.FEATURE_CACHE_DIR
@@ -154,7 +167,7 @@ def main() -> None:
     """CLI for running feature selection."""
     import argparse
 
-    from ..models.train import CARDS_LINES, GOALS_LINES, META_COLS, prepare_data
+    from ..models.train import CARDS_LINES, GOALS_LINES, prepare_data
 
     parser = argparse.ArgumentParser(description="Select features for La Liga models")
     parser.add_argument(
@@ -168,6 +181,7 @@ def main() -> None:
     settings = get_settings()
 
     from .feature_store import load_features
+
     features_path = args.features or str(settings.FEATURE_CACHE_DIR / "features.parquet")
     df = load_features(features_path)
 
@@ -178,8 +192,8 @@ def main() -> None:
     # Map targets
     targets_map = {
         "winner": [("result", "multiclass")],
-        "goals-ou": [(f"goals_over_{l}", "binary") for l in GOALS_LINES],
-        "cards-ou": [(f"cards_over_{l}", "binary") for l in CARDS_LINES],
+        "goals-ou": [(f"goals_over_{line}", "binary") for line in GOALS_LINES],
+        "cards-ou": [(f"cards_over_{line}", "binary") for line in CARDS_LINES],
     }
     if args.target == "all":
         target_list = targets_map["winner"] + targets_map["goals-ou"] + targets_map["cards-ou"]

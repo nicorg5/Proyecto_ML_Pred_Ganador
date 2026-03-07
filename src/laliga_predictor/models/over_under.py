@@ -5,7 +5,6 @@ Each model predicts P(over) for a specific line (e.g., over/under 2.5 goals).
 """
 
 import logging
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -61,9 +60,7 @@ class XGBoostOverUnder(BasePredictor):
         line: The over/under line (e.g., 2.5, 3.5)
     """
 
-    def __init__(
-        self, stat_type: str = "goals", line: float = 2.5, **kwargs
-    ) -> None:
+    def __init__(self, stat_type: str = "goals", line: float = 2.5, **kwargs) -> None:
         super().__init__(f"XGBoost_O/U_{stat_type}_{line}", "classifier")
         self.stat_type = stat_type
         self.line = line
@@ -112,9 +109,7 @@ class XGBoostOverUnder(BasePredictor):
         self.metadata["line"] = self.line
         self.metadata["stat_type"] = self.stat_type
         self.metadata["params"] = self.model.get_params()
-        self.metadata["best_iteration"] = getattr(
-            self.model, "best_iteration", None
-        )
+        self.metadata["best_iteration"] = getattr(self.model, "best_iteration", None)
         return self
 
     def predict(self, X):
@@ -125,18 +120,18 @@ class XGBoostOverUnder(BasePredictor):
         return self.model.predict_proba(X)
 
     def get_feature_importance(self):
-        return pd.DataFrame({
-            "feature": self.feature_names,
-            "importance": self.model.feature_importances_,
-        }).sort_values("importance", ascending=False)
+        return pd.DataFrame(
+            {
+                "feature": self.feature_names,
+                "importance": self.model.feature_importances_,
+            }
+        ).sort_values("importance", ascending=False)
 
 
 class LightGBMOverUnder(BasePredictor):
     """LightGBM binary classifier for over/under prediction."""
 
-    def __init__(
-        self, stat_type: str = "goals", line: float = 2.5, **kwargs
-    ) -> None:
+    def __init__(self, stat_type: str = "goals", line: float = 2.5, **kwargs) -> None:
         super().__init__(f"LightGBM_O/U_{stat_type}_{line}", "classifier")
         self.stat_type = stat_type
         self.line = line
@@ -190,7 +185,9 @@ class LightGBMOverUnder(BasePredictor):
         return self.model.predict_proba(X)
 
     def get_feature_importance(self):
-        return pd.DataFrame({
-            "feature": self.feature_names,
-            "importance": self.model.feature_importances_,
-        }).sort_values("importance", ascending=False)
+        return pd.DataFrame(
+            {
+                "feature": self.feature_names,
+                "importance": self.model.feature_importances_,
+            }
+        ).sort_values("importance", ascending=False)

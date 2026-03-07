@@ -8,15 +8,14 @@ temporal train/val/test splits.
 import logging
 from functools import partial
 from pathlib import Path
-from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 from ..config import get_settings
 from ..features.feature_selection import load_selected_features
 from ..features.feature_store import load_features
 from .base import BasePredictor
+from .calibration import CalibratedPredictor
 from .classifiers import (
     EnsembleWinner,
     HomeAlwaysWinsBaseline,
@@ -24,7 +23,6 @@ from .classifiers import (
     RandomForestWinner,
     XGBoostWinner,
 )
-from .calibration import CalibratedPredictor
 from .evaluate import evaluate_binary_classifier, evaluate_classifier
 from .over_under import LightGBMOverUnder, OverUnderBaseline, XGBoostOverUnder
 from .tuning import load_tuned_params
@@ -33,8 +31,14 @@ logger = logging.getLogger(__name__)
 
 # Metadata columns (not features)
 META_COLS = {
-    "match_id", "match_date", "season_code", "home_team", "away_team",
-    "target_result", "target_total_goals", "target_total_cards",
+    "match_id",
+    "match_date",
+    "season_code",
+    "home_team",
+    "away_team",
+    "target_result",
+    "target_total_goals",
+    "target_total_cards",
 }
 
 # Over/Under lines to train
@@ -169,10 +173,10 @@ def train_model(
     target: str,
     model_name: str,
     df: pd.DataFrame,
-    train_seasons: Optional[list[str]] = None,
-    val_seasons: Optional[list[str]] = None,
-    test_seasons: Optional[list[str]] = None,
-    save_dir: Optional[Path] = None,
+    train_seasons: list[str] | None = None,
+    val_seasons: list[str] | None = None,
+    test_seasons: list[str] | None = None,
+    save_dir: Path | None = None,
 ) -> tuple[BasePredictor, dict]:
     """Train a single model for a target.
 
@@ -268,8 +272,8 @@ def train_model(
 
 def train_all(
     df: pd.DataFrame,
-    targets: Optional[list[str]] = None,
-    model_names: Optional[list[str]] = None,
+    targets: list[str] | None = None,
+    model_names: list[str] | None = None,
 ) -> dict:
     """Train all models for all targets.
 
@@ -277,8 +281,8 @@ def train_all(
     """
     if targets is None:
         targets = ["result"]
-        targets += [f"goals_over_{l}" for l in GOALS_LINES]
-        targets += [f"cards_over_{l}" for l in CARDS_LINES]
+        targets += [f"goals_over_{line}" for line in GOALS_LINES]
+        targets += [f"cards_over_{line}" for line in CARDS_LINES]
 
     all_results: dict = {}
 
@@ -336,8 +340,8 @@ def main() -> None:
     # Map CLI target names to internal target list
     target_map = {
         "winner": ["result"],
-        "goals-ou": [f"goals_over_{l}" for l in GOALS_LINES],
-        "cards-ou": [f"cards_over_{l}" for l in CARDS_LINES],
+        "goals-ou": [f"goals_over_{line}" for line in GOALS_LINES],
+        "cards-ou": [f"cards_over_{line}" for line in CARDS_LINES],
         "all": None,  # train_all will use all targets
     }
     targets = target_map[args.target]

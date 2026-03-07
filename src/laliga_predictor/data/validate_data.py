@@ -6,7 +6,6 @@ providing detailed reports on data integrity, missing values, and potential issu
 """
 
 import logging
-from typing import Dict, List, Tuple
 
 import psycopg2
 from psycopg2.extras import DictCursor
@@ -23,8 +22,8 @@ class DataValidator:
         """Initialize the data validator."""
         self.settings = get_settings()
         self.db_conn = self._connect_db()
-        self.issues: List[str] = []
-        self.warnings: List[str] = []
+        self.issues: list[str] = []
+        self.warnings: list[str] = []
 
     def _connect_db(self) -> psycopg2.extensions.connection:
         """Connect to PostgreSQL database."""
@@ -37,7 +36,7 @@ class DataValidator:
         )
         return conn
 
-    def validate_all(self) -> Tuple[bool, Dict[str, any]]:
+    def validate_all(self) -> tuple[bool, dict[str, any]]:
         """
         Run all validation checks.
 
@@ -91,7 +90,7 @@ class DataValidator:
 
         return is_valid, report
 
-    def _check_counts(self) -> Dict[str, int]:
+    def _check_counts(self) -> dict[str, int]:
         """Check record counts in all tables."""
         counts = {}
 
@@ -116,35 +115,37 @@ class DataValidator:
 
         return counts
 
-    def _check_completeness(self) -> Dict[str, any]:
+    def _check_completeness(self) -> dict[str, any]:
         """Check data completeness (missing values)."""
         completeness = {}
 
         with self.db_conn.cursor(cursor_factory=DictCursor) as cursor:
             # Check finished matches with missing scores
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM matches
                 WHERE status = 'FT'
                   AND (home_score IS NULL OR away_score IS NULL)
-            """)
+            """
+            )
             missing_scores = cursor.fetchone()[0]
             completeness["missing_scores"] = missing_scores
 
             if missing_scores > 0:
-                self.issues.append(
-                    f"Found {missing_scores} finished matches with missing scores"
-                )
+                self.issues.append(f"Found {missing_scores} finished matches with missing scores")
             else:
                 logger.info("  ✓ All finished matches have scores")
 
             # Check matches with missing basic statistics
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM matches
                 WHERE status = 'FT'
                   AND (home_possession IS NULL OR away_possession IS NULL)
-            """)
+            """
+            )
             missing_stats = cursor.fetchone()[0]
             completeness["missing_basic_stats"] = missing_stats
 
@@ -157,20 +158,24 @@ class DataValidator:
                 logger.info("  ✓ All finished matches have basic statistics")
 
             # Check coverage by season
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT s.name, COUNT(m.id) as match_count,
                        COUNT(CASE WHEN m.status = 'FT' THEN 1 END) as finished_count
                 FROM seasons s
                 LEFT JOIN matches m ON s.id = m.season_id
                 GROUP BY s.name
                 ORDER BY s.name
-            """)
+            """
+            )
             season_coverage = cursor.fetchall()
             completeness["season_coverage"] = [dict(row) for row in season_coverage]
 
             logger.info("  Season coverage:")
             for row in season_coverage:
-                logger.info(f"    {row['name']}: {row['finished_count']}/{row['match_count']} finished")
+                logger.info(
+                    f"    {row['name']}: {row['finished_count']}/{row['match_count']} finished"
+                )
                 if row["finished_count"] < 300:
                     self.warnings.append(
                         f"Season {row['name']} has only {row['finished_count']} finished matches "
@@ -179,13 +184,14 @@ class DataValidator:
 
         return completeness
 
-    def _check_consistency(self) -> Dict[str, any]:
+    def _check_consistency(self) -> dict[str, any]:
         """Check data consistency."""
         consistency = {}
 
         with self.db_conn.cursor(cursor_factory=DictCursor) as cursor:
             # Check result consistency (result field should match scores)
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM matches
                 WHERE status = 'FT'
@@ -196,7 +202,8 @@ class DataValidator:
                       (home_score < away_score AND result != 'A') OR
                       (home_score = away_score AND result != 'D')
                   )
-            """)
+            """
+            )
             inconsistent_results = cursor.fetchone()[0]
             consistency["inconsistent_results"] = inconsistent_results
 
@@ -208,14 +215,16 @@ class DataValidator:
                 logger.info("  ✓ All match results are consistent with scores")
 
             # Check possession totals (should sum to ~100%)
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM matches
                 WHERE status = 'FT'
                   AND home_possession IS NOT NULL
                   AND away_possession IS NOT NULL
                   AND ABS((home_possession + away_possession) - 100) > 1
-            """)
+            """
+            )
             invalid_possession = cursor.fetchone()[0]
             consistency["invalid_possession"] = invalid_possession
 
@@ -227,12 +236,14 @@ class DataValidator:
                 logger.info("  ✓ All possession values are valid")
 
             # Check for duplicate matches
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT home_team_id, away_team_id, match_date, COUNT(*) as cnt
                 FROM matches
                 GROUP BY home_team_id, away_team_id, match_date
                 HAVING COUNT(*) > 1
-            """)
+            """
+            )
             duplicates = cursor.fetchall()
             consistency["duplicate_matches"] = len(duplicates)
 
@@ -243,13 +254,14 @@ class DataValidator:
 
         return consistency
 
-    def _check_statistics(self) -> Dict[str, any]:
+    def _check_statistics(self) -> dict[str, any]:
         """Check match statistics coverage."""
         statistics = {}
 
         with self.db_conn.cursor(cursor_factory=DictCursor) as cursor:
             # Check percentage of matches with detailed stats
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT
                     COUNT(DISTINCT m.id) as total_matches,
                     COUNT(DISTINCT ms.match_id) as matches_with_stats,
@@ -257,7 +269,8 @@ class DataValidator:
                 FROM matches m
                 LEFT JOIN match_stats ms ON m.id = ms.match_id
                 WHERE m.status = 'FT'
-            """)
+            """
+            )
             stats_coverage = cursor.fetchone()
             statistics["coverage"] = dict(stats_coverage)
 
@@ -272,7 +285,8 @@ class DataValidator:
                 )
 
             # Check statistics by season
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT s.name,
                        COUNT(DISTINCT m.id) as total_matches,
                        COUNT(DISTINCT ms.match_id) as matches_with_stats
@@ -282,7 +296,8 @@ class DataValidator:
                 WHERE m.status = 'FT'
                 GROUP BY s.name
                 ORDER BY s.name
-            """)
+            """
+            )
             season_stats = cursor.fetchall()
             statistics["by_season"] = [dict(row) for row in season_stats]
 
@@ -300,18 +315,20 @@ class DataValidator:
 
         return statistics
 
-    def _check_quality(self) -> Dict[str, any]:
+    def _check_quality(self) -> dict[str, any]:
         """Check data quality (outliers, anomalies)."""
         quality = {}
 
         with self.db_conn.cursor(cursor_factory=DictCursor) as cursor:
             # Check for unrealistic scores
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM matches
                 WHERE status = 'FT'
                   AND (home_score > 10 OR away_score > 10)
-            """)
+            """
+            )
             unrealistic_scores = cursor.fetchone()[0]
             quality["unrealistic_scores"] = unrealistic_scores
 
@@ -323,13 +340,15 @@ class DataValidator:
                 logger.info("  ✓ All scores are realistic")
 
             # Check for negative statistics
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM matches
                 WHERE home_shots_total < 0 OR away_shots_total < 0
                    OR home_corners < 0 OR away_corners < 0
                    OR home_fouls < 0 OR away_fouls < 0
-            """)
+            """
+            )
             negative_stats = cursor.fetchone()[0]
             quality["negative_stats"] = negative_stats
 
@@ -339,12 +358,14 @@ class DataValidator:
                 logger.info("  ✓ No negative statistics found")
 
             # Check for shots on goal > total shots
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM matches
                 WHERE (home_shots_on_goal > home_shots_total)
                    OR (away_shots_on_goal > away_shots_total)
-            """)
+            """
+            )
             invalid_shots = cursor.fetchone()[0]
             quality["invalid_shots"] = invalid_shots
 
@@ -356,7 +377,8 @@ class DataValidator:
                 logger.info("  ✓ All shot statistics are valid")
 
             # Get basic statistics
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT
                     AVG(home_score + away_score) as avg_goals_per_match,
                     MAX(home_score + away_score) as max_goals_in_match,
@@ -365,7 +387,8 @@ class DataValidator:
                 WHERE status = 'FT'
                   AND home_score IS NOT NULL
                   AND away_score IS NOT NULL
-            """)
+            """
+            )
             basic_stats = cursor.fetchone()
             quality["basic_stats"] = dict(basic_stats) if basic_stats else {}
 

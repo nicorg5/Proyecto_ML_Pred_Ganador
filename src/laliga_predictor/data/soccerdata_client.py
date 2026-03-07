@@ -13,7 +13,6 @@ import json
 import logging
 from datetime import datetime as dt
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 import requests
@@ -35,7 +34,7 @@ _COVID_START_DATE = "20200801"  # After COVID-extended 19-20 season ended
 class SoccerdataClient:
     """Unified client for soccerdata library sources."""
 
-    def __init__(self, seasons: Optional[list[str]] = None) -> None:
+    def __init__(self, seasons: list[str] | None = None) -> None:
         settings = get_settings()
 
         if seasons is None:
@@ -53,7 +52,7 @@ class SoccerdataClient:
     # FBref
     # ================================================================
 
-    def _get_fbref(self, seasons: Optional[list[str]] = None) -> sd.FBref:
+    def _get_fbref(self, seasons: list[str] | None = None) -> sd.FBref:
         """Create FBref reader instance."""
         s = seasons or self.seasons
         return sd.FBref(
@@ -64,7 +63,7 @@ class SoccerdataClient:
             data_dir=self.data_dir / "FBref",
         )
 
-    def fetch_schedule(self, seasons: Optional[list[str]] = None) -> pd.DataFrame:
+    def fetch_schedule(self, seasons: list[str] | None = None) -> pd.DataFrame:
         """Fetch match schedule with xG from FBref.
 
         Returns columns: week, day, date, time, home_team, home_xg, score,
@@ -77,7 +76,7 @@ class SoccerdataClient:
         return df
 
     def fetch_team_match_stats(
-        self, stat_type: str, seasons: Optional[list[str]] = None
+        self, stat_type: str, seasons: list[str] | None = None
     ) -> pd.DataFrame:
         """Fetch team match stats from FBref.
 
@@ -97,7 +96,7 @@ class SoccerdataClient:
         return df
 
     def fetch_player_match_stats(
-        self, stat_type: str = "summary", seasons: Optional[list[str]] = None
+        self, stat_type: str = "summary", seasons: list[str] | None = None
     ) -> pd.DataFrame:
         """Fetch player-level match stats from FBref."""
         fbref = self._get_fbref(seasons)
@@ -106,7 +105,7 @@ class SoccerdataClient:
         logger.info(f"Fetched {len(df)} player-match rows")
         return df
 
-    def fetch_shot_events(self, seasons: Optional[list[str]] = None) -> pd.DataFrame:
+    def fetch_shot_events(self, seasons: list[str] | None = None) -> pd.DataFrame:
         """Fetch shot event data from FBref."""
         fbref = self._get_fbref(seasons)
         logger.info("Fetching FBref shot events...")
@@ -114,7 +113,7 @@ class SoccerdataClient:
         logger.info(f"Fetched {len(df)} shot events")
         return df
 
-    def fetch_events(self, seasons: Optional[list[str]] = None) -> pd.DataFrame:
+    def fetch_events(self, seasons: list[str] | None = None) -> pd.DataFrame:
         """Fetch match events (goals, cards, subs) from FBref."""
         fbref = self._get_fbref(seasons)
         logger.info("Fetching FBref match events...")
@@ -126,7 +125,7 @@ class SoccerdataClient:
     # ESPN
     # ================================================================
 
-    def _get_espn(self, seasons: Optional[list[str]] = None) -> sd.ESPN:
+    def _get_espn(self, seasons: list[str] | None = None) -> sd.ESPN:
         """Create ESPN reader instance."""
         s = seasons or self.seasons
         return sd.ESPN(
@@ -137,9 +136,7 @@ class SoccerdataClient:
             data_dir=self.data_dir / "ESPN",
         )
 
-    def fetch_espn_schedule(
-        self, seasons: Optional[list[str]] = None
-    ) -> pd.DataFrame:
+    def fetch_espn_schedule(self, seasons: list[str] | None = None) -> pd.DataFrame:
         """Fetch match schedule from ESPN.
 
         Returns DataFrame with columns: date, home_team, away_team, game_id,
@@ -173,7 +170,7 @@ class SoccerdataClient:
         return result
 
     def fetch_espn_matchsheet(
-        self, match_id: int, seasons: Optional[list[str]] = None
+        self, match_id: int, seasons: list[str] | None = None
     ) -> pd.DataFrame:
         """Fetch detailed matchsheet for a single ESPN match.
 
@@ -227,7 +224,7 @@ class SoccerdataClient:
         2019-2020 season because the COVID-extended 19-20 season was
         still active on July 1, 2020 (soccerdata's default start date).
         """
-        from soccerdata._common import make_game_id, standardize_colnames
+        from soccerdata._common import make_game_id
         from soccerdata._config import TEAMNAME_REPLACEMENTS
 
         cache = self._espn_cache_dir()
@@ -237,10 +234,7 @@ class SoccerdataClient:
         cal_data = self._espn_api_get(cal_url, cache / "calendar.json")
         calendar = cal_data["leagues"][0]["calendar"]
 
-        match_dates = [
-            dt.strptime(d, "%Y-%m-%dT%H:%MZ").strftime("%Y%m%d")
-            for d in calendar
-        ]
+        match_dates = [dt.strptime(d, "%Y-%m-%dT%H:%MZ").strftime("%Y%m%d") for d in calendar]
 
         # Fetch scoreboard for each match date
         df_list = []
@@ -252,15 +246,17 @@ class SoccerdataClient:
                 competitors = e.get("competitions", [{}])[0].get("competitors", [])
                 if len(competitors) < 2:
                     continue
-                df_list.append({
-                    "league": LEAGUE,
-                    "season": _COVID_SEASON,
-                    "date": e["date"],
-                    "home_team": competitors[0]["team"]["name"],
-                    "away_team": competitors[1]["team"]["name"],
-                    "game_id": int(e["id"]),
-                    "league_id": _ESPN_LEAGUE_ID,
-                })
+                df_list.append(
+                    {
+                        "league": LEAGUE,
+                        "season": _COVID_SEASON,
+                        "date": e["date"],
+                        "home_team": competitors[0]["team"]["name"],
+                        "away_team": competitors[1]["team"]["name"],
+                        "game_id": int(e["id"]),
+                        "league_id": _ESPN_LEAGUE_ID,
+                    }
+                )
 
         if not df_list:
             return pd.DataFrame()
@@ -316,7 +312,7 @@ class SoccerdataClient:
     # MatchHistory (Football-Data.co.uk)
     # ================================================================
 
-    def _get_match_history(self, seasons: Optional[list[str]] = None) -> sd.MatchHistory:
+    def _get_match_history(self, seasons: list[str] | None = None) -> sd.MatchHistory:
         """Create MatchHistory reader instance."""
         s = seasons or self.seasons
         return sd.MatchHistory(
@@ -327,9 +323,7 @@ class SoccerdataClient:
             data_dir=self.data_dir / "MatchHistory",
         )
 
-    def fetch_match_history_games(
-        self, seasons: Optional[list[str]] = None
-    ) -> pd.DataFrame:
+    def fetch_match_history_games(self, seasons: list[str] | None = None) -> pd.DataFrame:
         """Fetch historical match data from Football-Data.co.uk.
 
         Returns DataFrame with: FTHG, FTAG, FTR, HTHG, HTAG, HTR,

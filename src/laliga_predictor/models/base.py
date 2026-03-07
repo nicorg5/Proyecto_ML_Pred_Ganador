@@ -7,7 +7,7 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import joblib
 import numpy as np
@@ -31,8 +31,8 @@ class BasePredictor(ABC):
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series,
-        X_val: Optional[pd.DataFrame] = None,
-        y_val: Optional[pd.Series] = None,
+        X_val: pd.DataFrame | None = None,
+        y_val: pd.Series | None = None,
     ) -> "BasePredictor":
         """Train the model."""
         ...

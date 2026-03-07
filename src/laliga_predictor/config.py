@@ -7,7 +7,6 @@ Loads configuration from environment variables and .env files.
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -58,9 +57,7 @@ class Settings(BaseSettings):
         description="API-Football base URL",
     )
     LALIGA_LEAGUE_ID: int = Field(default=140, description="LaLiga league ID")
-    API_REQUEST_TIMEOUT: int = Field(
-        default=30, ge=5, le=120, description="API request timeout"
-    )
+    API_REQUEST_TIMEOUT: int = Field(default=30, ge=5, le=120, description="API request timeout")
     API_MAX_RETRIES: int = Field(default=3, ge=1, le=10, description="API max retries")
     API_RETRY_DELAY: int = Field(default=2, ge=1, description="API retry delay")
 
@@ -78,26 +75,16 @@ class Settings(BaseSettings):
     )
 
     # Web Scraping Configuration (Legacy)
-    FBREF_BASE_URL: str = Field(
-        default="https://fbref.com/en/", description="FBRef base URL"
-    )
-    SCRAPING_DELAY: int = Field(
-        default=2, ge=0, description="Delay between requests in seconds"
-    )
+    FBREF_BASE_URL: str = Field(default="https://fbref.com/en/", description="FBRef base URL")
+    SCRAPING_DELAY: int = Field(default=2, ge=0, description="Delay between requests in seconds")
     MAX_RETRIES: int = Field(default=3, ge=1, le=10, description="Maximum retries")
-    REQUEST_TIMEOUT: int = Field(
-        default=30, ge=5, le=120, description="Request timeout in seconds"
-    )
+    REQUEST_TIMEOUT: int = Field(default=30, ge=5, le=120, description="Request timeout in seconds")
 
     # Machine Learning Configuration
     MODEL_PATH: Path = Field(default=Path("models/"), description="Model save path")
     RANDOM_STATE: int = Field(default=42, description="Random seed")
-    TEST_SIZE: float = Field(
-        default=0.2, ge=0.1, le=0.5, description="Test set size ratio"
-    )
-    CV_FOLDS: int = Field(
-        default=5, ge=2, le=10, description="Cross-validation folds"
-    )
+    TEST_SIZE: float = Field(default=0.2, ge=0.1, le=0.5, description="Test set size ratio")
+    CV_FOLDS: int = Field(default=5, ge=2, le=10, description="Cross-validation folds")
 
     # ML Pipeline Configuration
     ROLLING_WINDOWS: str = Field(
@@ -121,15 +108,15 @@ class Settings(BaseSettings):
         description="Directory for cached feature files",
     )
     N_TUNING_TRIALS: int = Field(
-        default=50, ge=10, le=500,
+        default=50,
+        ge=10,
+        le=500,
         description="Number of Optuna hyperparameter tuning trials",
     )
 
     # Logging Configuration
     LOG_LEVEL: str = Field(default="INFO", description="Logging level")
-    LOG_FILE: Path = Field(
-        default=Path("logs/laliga_predictor.log"), description="Log file path"
-    )
+    LOG_FILE: Path = Field(default=Path("logs/laliga_predictor.log"), description="Log file path")
 
     # Application Configuration
     ENVIRONMENT: str = Field(default="development", description="Environment name")
@@ -142,9 +129,7 @@ class Settings(BaseSettings):
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         v_upper = v.upper()
         if v_upper not in valid_levels:
-            raise ValueError(
-                f"LOG_LEVEL must be one of {valid_levels}, got '{v}'"
-            )
+            raise ValueError(f"LOG_LEVEL must be one of {valid_levels}, got '{v}'")
         return v_upper
 
     @field_validator("ENVIRONMENT")
@@ -154,9 +139,7 @@ class Settings(BaseSettings):
         valid_envs = ["development", "staging", "production", "test"]
         v_lower = v.lower()
         if v_lower not in valid_envs:
-            raise ValueError(
-                f"ENVIRONMENT must be one of {valid_envs}, got '{v}'"
-            )
+            raise ValueError(f"ENVIRONMENT must be one of {valid_envs}, got '{v}'")
         return v_lower
 
     @field_validator("MODEL_PATH", "LOG_FILE")
@@ -287,7 +270,7 @@ class Settings(BaseSettings):
 
 
 # Global settings instance
-_settings: Optional[Settings] = None
+_settings: Settings | None = None
 
 
 def get_settings() -> Settings:

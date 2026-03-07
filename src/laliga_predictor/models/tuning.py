@@ -8,7 +8,6 @@ the temporal nature of football data.
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import optuna
@@ -46,8 +45,8 @@ def tune_xgboost(
     y: pd.Series,
     season_codes: pd.Series,
     target_type: str = "multiclass",
-    n_trials: Optional[int] = None,
-    scale_pos_weight: Optional[float] = None,
+    n_trials: int | None = None,
+    scale_pos_weight: float | None = None,
 ) -> dict:
     """Tune XGBoost hyperparameters using Optuna with temporal CV.
 
@@ -99,7 +98,8 @@ def tune_xgboost(
 
             model = XGBClassifier(**params)
             model.fit(
-                X_train_fold, y_train_fold,
+                X_train_fold,
+                y_train_fold,
                 eval_set=[(X_val_fold, y_val_fold)],
                 verbose=False,
             )
@@ -133,7 +133,7 @@ def tune_xgboost(
     }
 
 
-def save_tuned_params(params: dict, target: str, output_dir: Optional[Path] = None) -> Path:
+def save_tuned_params(params: dict, target: str, output_dir: Path | None = None) -> Path:
     """Save tuned parameters to JSON."""
     settings = get_settings()
     out_dir = output_dir or settings.MODEL_PATH
@@ -145,7 +145,7 @@ def save_tuned_params(params: dict, target: str, output_dir: Optional[Path] = No
     return path
 
 
-def load_tuned_params(target: str, input_dir: Optional[Path] = None) -> Optional[dict]:
+def load_tuned_params(target: str, input_dir: Path | None = None) -> dict | None:
     """Load tuned parameters from JSON. Returns None if not found."""
     settings = get_settings()
     in_dir = input_dir or settings.MODEL_PATH
@@ -170,7 +170,7 @@ def main() -> None:
 
     from ..features.feature_selection import load_selected_features
     from ..features.feature_store import load_features
-    from .train import CARDS_LINES, GOALS_LINES, META_COLS, prepare_data
+    from .train import CARDS_LINES, GOALS_LINES, META_COLS
 
     parser = argparse.ArgumentParser(description="Optuna hyperparameter tuning")
     parser.add_argument(
@@ -196,8 +196,8 @@ def main() -> None:
     # Map targets
     targets_map = {
         "winner": [("result", "multiclass")],
-        "goals-ou": [(f"goals_over_{l}", "binary") for l in GOALS_LINES],
-        "cards-ou": [(f"cards_over_{l}", "binary") for l in CARDS_LINES],
+        "goals-ou": [(f"goals_over_{line}", "binary") for line in GOALS_LINES],
+        "cards-ou": [(f"cards_over_{line}", "binary") for line in CARDS_LINES],
     }
     if args.target == "all":
         target_list = targets_map["winner"] + targets_map["goals-ou"] + targets_map["cards-ou"]
@@ -237,7 +237,9 @@ def main() -> None:
                 spw = n_neg / n_pos
 
         result = tune_xgboost(
-            X_tune, y_tune, seasons_tune,
+            X_tune,
+            y_tune,
+            seasons_tune,
             target_type=target_type,
             n_trials=args.trials,
             scale_pos_weight=spw,

@@ -3,7 +3,6 @@ Match winner prediction models (H/D/A classification).
 """
 
 import logging
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -80,10 +79,12 @@ class RandomForestWinner(BasePredictor):
         return self.model.predict_proba(X)
 
     def get_feature_importance(self):
-        return pd.DataFrame({
-            "feature": self.feature_names,
-            "importance": self.model.feature_importances_,
-        }).sort_values("importance", ascending=False)
+        return pd.DataFrame(
+            {
+                "feature": self.feature_names,
+                "importance": self.model.feature_importances_,
+            }
+        ).sort_values("importance", ascending=False)
 
 
 class XGBoostWinner(BasePredictor):
@@ -139,10 +140,12 @@ class XGBoostWinner(BasePredictor):
 
     def get_feature_importance(self):
         importance = self.model.feature_importances_
-        return pd.DataFrame({
-            "feature": self.feature_names,
-            "importance": importance,
-        }).sort_values("importance", ascending=False)
+        return pd.DataFrame(
+            {
+                "feature": self.feature_names,
+                "importance": importance,
+            }
+        ).sort_values("importance", ascending=False)
 
 
 class LightGBMWinner(BasePredictor):
@@ -197,10 +200,12 @@ class LightGBMWinner(BasePredictor):
         return self.model.predict_proba(X)
 
     def get_feature_importance(self):
-        return pd.DataFrame({
-            "feature": self.feature_names,
-            "importance": self.model.feature_importances_,
-        }).sort_values("importance", ascending=False)
+        return pd.DataFrame(
+            {
+                "feature": self.feature_names,
+                "importance": self.model.feature_importances_,
+            }
+        ).sort_values("importance", ascending=False)
 
 
 class EnsembleWinner(BasePredictor):
@@ -212,23 +217,49 @@ class EnsembleWinner(BasePredictor):
 
         self.model = VotingClassifier(
             estimators=[
-                ("rf", RandomForestClassifier(
-                    n_estimators=300, max_depth=12, min_samples_leaf=20,
-                    class_weight="balanced", random_state=settings.RANDOM_STATE, n_jobs=-1,
-                )),
-                ("xgb", XGBClassifier(
-                    n_estimators=300, max_depth=5, learning_rate=0.05,
-                    subsample=0.8, colsample_bytree=0.8,
-                    objective="multi:softprob", num_class=3,
-                    random_state=settings.RANDOM_STATE, n_jobs=-1, verbosity=0,
-                )),
-                ("lgb", LGBMClassifier(
-                    n_estimators=300, max_depth=6, learning_rate=0.05,
-                    subsample=0.8, colsample_bytree=0.8,
-                    num_leaves=31, min_child_samples=20,
-                    objective="multiclass", num_class=3,
-                    random_state=settings.RANDOM_STATE, n_jobs=-1, verbosity=-1,
-                )),
+                (
+                    "rf",
+                    RandomForestClassifier(
+                        n_estimators=300,
+                        max_depth=12,
+                        min_samples_leaf=20,
+                        class_weight="balanced",
+                        random_state=settings.RANDOM_STATE,
+                        n_jobs=-1,
+                    ),
+                ),
+                (
+                    "xgb",
+                    XGBClassifier(
+                        n_estimators=300,
+                        max_depth=5,
+                        learning_rate=0.05,
+                        subsample=0.8,
+                        colsample_bytree=0.8,
+                        objective="multi:softprob",
+                        num_class=3,
+                        random_state=settings.RANDOM_STATE,
+                        n_jobs=-1,
+                        verbosity=0,
+                    ),
+                ),
+                (
+                    "lgb",
+                    LGBMClassifier(
+                        n_estimators=300,
+                        max_depth=6,
+                        learning_rate=0.05,
+                        subsample=0.8,
+                        colsample_bytree=0.8,
+                        num_leaves=31,
+                        min_child_samples=20,
+                        objective="multiclass",
+                        num_class=3,
+                        random_state=settings.RANDOM_STATE,
+                        n_jobs=-1,
+                        verbosity=-1,
+                    ),
+                ),
             ],
             voting="soft",
             n_jobs=-1,
@@ -255,7 +286,9 @@ class EnsembleWinner(BasePredictor):
         rf_model = self.model.estimators_[0]
         lgb_model = self.model.estimators_[2]
         avg_importance = (rf_model.feature_importances_ + lgb_model.feature_importances_) / 2
-        return pd.DataFrame({
-            "feature": self.feature_names,
-            "importance": avg_importance,
-        }).sort_values("importance", ascending=False)
+        return pd.DataFrame(
+            {
+                "feature": self.feature_names,
+                "importance": avg_importance,
+            }
+        ).sort_values("importance", ascending=False)

@@ -2,7 +2,7 @@
 Unit tests for web scraper module.
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
@@ -52,9 +52,7 @@ class TestFBRefScraper:
         assert second_duration >= 0.9  # Allow some margin
 
     @patch("src.laliga_predictor.data.scraper.requests.Session.get")
-    def test_fetch_page_success(
-        self, mock_get: Mock, scraper: FBRefScraper
-    ) -> None:
+    def test_fetch_page_success(self, mock_get: Mock, scraper: FBRefScraper) -> None:
         """Test successful page fetch."""
         # Mock response
         mock_response = Mock()
@@ -70,9 +68,7 @@ class TestFBRefScraper:
         mock_get.assert_called_once()
 
     @patch("src.laliga_predictor.data.scraper.requests.Session.get")
-    def test_fetch_page_failure(
-        self, mock_get: Mock, scraper: FBRefScraper
-    ) -> None:
+    def test_fetch_page_failure(self, mock_get: Mock, scraper: FBRefScraper) -> None:
         """Test page fetch failure handling."""
         mock_get.side_effect = requests.RequestException("Connection error")
 

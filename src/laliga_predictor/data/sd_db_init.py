@@ -39,7 +39,7 @@ def init_soccerdata_database() -> None:
 
     logger.info(f"Reading schema from: {schema_path}")
 
-    with open(schema_path, "r", encoding="utf-8") as f:
+    with open(schema_path, encoding="utf-8") as f:
         schema_sql = f.read()
 
     logger.info(
@@ -56,12 +56,14 @@ def init_soccerdata_database() -> None:
             conn.commit()
             logger.info("Schema executed successfully")
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
                 ORDER BY table_name;
-            """)
+            """
+            )
             tables = cursor.fetchall()
 
             logger.info(f"Created {len(tables)} tables:")
@@ -84,7 +86,8 @@ def drop_all_tables() -> None:
         conn = get_sd_connection()
 
         with conn.cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
                 DROP TABLE IF EXISTS shot_events CASCADE;
                 DROP TABLE IF EXISTS match_player_stats CASCADE;
                 DROP TABLE IF EXISTS match_advanced_stats CASCADE;
@@ -94,7 +97,8 @@ def drop_all_tables() -> None:
                 DROP TABLE IF EXISTS teams CASCADE;
                 DROP TABLE IF EXISTS seasons CASCADE;
                 DROP TABLE IF EXISTS etl_log CASCADE;
-            """)
+            """
+            )
             conn.commit()
             logger.info("All soccerdata tables dropped successfully")
 
@@ -113,23 +117,27 @@ def verify_soccerdata_database() -> None:
         with conn.cursor() as cursor:
             logger.info("\n=== Soccerdata Database Structure ===")
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
                 ORDER BY table_name;
-            """)
+            """
+            )
             tables = cursor.fetchall()
             logger.info(f"\nTables ({len(tables)}):")
             for table in tables:
                 logger.info(f"  - {table[0]}")
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 'public' AND table_type = 'VIEW'
                 ORDER BY table_name;
-            """)
+            """
+            )
             views = cursor.fetchall()
             logger.info(f"\nViews ({len(views)}):")
             for view in views:
@@ -138,16 +146,20 @@ def verify_soccerdata_database() -> None:
             logger.info("\n=== Data Statistics ===")
 
             table_names = [
-                "seasons", "teams", "team_name_mapping", "matches",
-                "match_advanced_stats", "standings", "match_player_stats",
-                "shot_events", "etl_log",
+                "seasons",
+                "teams",
+                "team_name_mapping",
+                "matches",
+                "match_advanced_stats",
+                "standings",
+                "match_player_stats",
+                "shot_events",
+                "etl_log",
             ]
             for table_name in table_names:
                 try:
                     cursor.execute(
-                        sql.SQL("SELECT COUNT(*) FROM {}").format(
-                            sql.Identifier(table_name)
-                        )
+                        sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table_name))
                     )
                     count = cursor.fetchone()[0]
                     logger.info(f"  {table_name}: {count} records")

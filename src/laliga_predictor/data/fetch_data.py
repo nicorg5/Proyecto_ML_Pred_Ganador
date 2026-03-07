@@ -8,7 +8,7 @@ incrementally across multiple days.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import psycopg2
 from psycopg2.extras import execute_values
@@ -117,12 +117,10 @@ class DataFetcher:
             fixture_info = fixture["fixture"]
             teams = fixture["teams"]
             goals = fixture["goals"]
-            score = fixture["score"]
+            fixture["score"]
 
             # Parse date
-            match_date = datetime.fromisoformat(
-                fixture_info["date"].replace("Z", "+00:00")
-            )
+            match_date = datetime.fromisoformat(fixture_info["date"].replace("Z", "+00:00"))
 
             # Determine result
             home_score = goals["home"]
@@ -181,7 +179,7 @@ class DataFetcher:
 
         return len(fixtures_to_insert)
 
-    def fetch_and_store_statistics(self, season: int, limit: Optional[int] = None) -> int:
+    def fetch_and_store_statistics(self, season: int, limit: int | None = None) -> int:
         """
         Fetch statistics for all finished matches in a season.
 
@@ -255,7 +253,7 @@ class DataFetcher:
 
         return stats_stored
 
-    def _store_match_statistics(self, match_id: int, stats_data: List[Dict[str, Any]]) -> None:
+    def _store_match_statistics(self, match_id: int, stats_data: list[dict[str, Any]]) -> None:
         """
         Store match statistics in database.
 
@@ -373,7 +371,7 @@ class DataFetcher:
             self.db_conn.commit()
 
     @staticmethod
-    def _parse_int(value: Any) -> Optional[int]:
+    def _parse_int(value: Any) -> int | None:
         """Parse integer value from API response."""
         if value is None or value == "":
             return None
@@ -383,7 +381,7 @@ class DataFetcher:
             return None
 
     @staticmethod
-    def _parse_float(value: Any) -> Optional[float]:
+    def _parse_float(value: Any) -> float | None:
         """Parse float value from API response."""
         if value is None or value == "":
             return None
@@ -393,7 +391,7 @@ class DataFetcher:
             return None
 
     @staticmethod
-    def _parse_percentage(value: Any) -> Optional[float]:
+    def _parse_percentage(value: Any) -> float | None:
         """Parse percentage value (e.g., '65%' -> 65.0)."""
         if value is None or value == "":
             return None
@@ -470,9 +468,7 @@ def main() -> None:
 
         # Step 3: Fetch match statistics
         if not args.stats_only or args.stats_only:
-            stats_count = fetcher.fetch_and_store_statistics(
-                args.season, limit=args.stats_limit
-            )
+            stats_count = fetcher.fetch_and_store_statistics(args.season, limit=args.stats_limit)
             logger.info(f"\nStored statistics for {stats_count} matches")
             logger.info(f"Total API requests used: {fetcher.request_count}/100")
 

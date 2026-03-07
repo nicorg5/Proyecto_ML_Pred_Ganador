@@ -7,16 +7,14 @@ End-to-end: synthetic data -> features -> train -> evaluate -> predict.
 import tempfile
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
-import pytest
 
 from src.laliga_predictor.features.feature_engineering import MatchFeatureBuilder
 from src.laliga_predictor.features.feature_store import load_features, save_features
-from src.laliga_predictor.models.classifiers import RandomForestWinner, XGBoostWinner
+from src.laliga_predictor.models.classifiers import RandomForestWinner
 from src.laliga_predictor.models.evaluate import evaluate_binary_classifier, evaluate_classifier
-from src.laliga_predictor.models.over_under import OverUnderBaseline, XGBoostOverUnder
-from src.laliga_predictor.models.train import META_COLS, prepare_data
+from src.laliga_predictor.models.over_under import XGBoostOverUnder
+from src.laliga_predictor.models.train import prepare_data
 
 
 class TestFeatureToTrainPipeline:
@@ -40,7 +38,8 @@ class TestFeatureToTrainPipeline:
 
         # Split by season
         X_train, y_train, X_val, y_val, X_test, y_test = prepare_data(
-            dataset, "result",
+            dataset,
+            "result",
             train_seasons=["2223"],
             val_seasons=["2324"],
             test_seasons=["2425"],
@@ -74,7 +73,8 @@ class TestFeatureToTrainPipeline:
         dataset = builder.build_dataset()
 
         X_train, y_train, X_val, y_val, X_test, y_test = prepare_data(
-            dataset, "goals_over_2.5",
+            dataset,
+            "goals_over_2.5",
             train_seasons=["2223"],
             val_seasons=["2324"],
             test_seasons=["2425"],
@@ -106,7 +106,8 @@ class TestEvaluationPipeline:
         dataset = builder.build_dataset()
 
         X_train, y_train, X_val, y_val, _, _ = prepare_data(
-            dataset, "result",
+            dataset,
+            "result",
             train_seasons=["2223"],
             val_seasons=["2324"],
             test_seasons=["2425"],
@@ -138,7 +139,8 @@ class TestEvaluationPipeline:
         dataset = builder.build_dataset()
 
         X_train, y_train, X_val, y_val, _, _ = prepare_data(
-            dataset, "goals_over_2.5",
+            dataset,
+            "goals_over_2.5",
             train_seasons=["2223"],
             val_seasons=["2324"],
             test_seasons=["2425"],

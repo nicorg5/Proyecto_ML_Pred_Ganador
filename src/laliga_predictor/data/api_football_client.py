@@ -7,7 +7,7 @@ Documentation: https://www.api-football.com/documentation-v3
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 from tenacity import (
@@ -35,7 +35,7 @@ class APIFootballClient:
         session: Requests session for connection pooling
     """
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         """
         Initialize the API Football client.
 
@@ -55,7 +55,9 @@ class APIFootballClient:
 
         # Rate limiting
         self.last_request_time = 0.0
-        self.min_request_interval = 7.0  # 7 seconds between requests (10 req/min limit = 6s min + 1s safety margin)
+        self.min_request_interval = (
+            7.0  # 7 seconds between requests (10 req/min limit = 6s min + 1s safety margin)
+        )
 
         logger.info(f"Initialized API Football client for league {self.league_id}")
 
@@ -76,9 +78,7 @@ class APIFootballClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
     )
-    def _make_request(
-        self, endpoint: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def _make_request(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Make a request to the API with retry logic.
 
@@ -114,7 +114,9 @@ class APIFootballClient:
 
             # Log rate limit info
             if "requests" in data.get("parameters", {}):
-                remaining = data.get("parameters", {}).get("requests", {}).get("remaining", "unknown")
+                remaining = (
+                    data.get("parameters", {}).get("requests", {}).get("remaining", "unknown")
+                )
                 logger.info(f"API requests remaining today: {remaining}")
 
             return data
@@ -123,7 +125,7 @@ class APIFootballClient:
             logger.error(f"Request failed: {e}")
             raise
 
-    def get_seasons(self) -> List[int]:
+    def get_seasons(self) -> list[int]:
         """
         Get available seasons for LaLiga.
 
@@ -145,8 +147,8 @@ class APIFootballClient:
         return sorted(seasons, reverse=True)
 
     def get_fixtures_by_season(
-        self, season: int, status: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, season: int, status: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get all fixtures for a specific LaLiga season.
 
@@ -178,7 +180,7 @@ class APIFootballClient:
 
         return fixtures
 
-    def get_fixture_statistics(self, fixture_id: int) -> Dict[str, Any]:
+    def get_fixture_statistics(self, fixture_id: int) -> dict[str, Any]:
         """
         Get detailed statistics for a specific fixture.
 
@@ -200,7 +202,7 @@ class APIFootballClient:
 
         return response.get("response", {})
 
-    def get_standings(self, season: int) -> List[Dict[str, Any]]:
+    def get_standings(self, season: int) -> list[dict[str, Any]]:
         """
         Get league standings for a specific season.
 
@@ -234,7 +236,7 @@ class APIFootballClient:
 
         return []
 
-    def get_teams(self, season: int) -> List[Dict[str, Any]]:
+    def get_teams(self, season: int) -> list[dict[str, Any]]:
         """
         Get all teams in LaLiga for a specific season.
 
@@ -262,9 +264,7 @@ class APIFootballClient:
 
         return teams
 
-    def get_h2h(
-        self, team1_id: int, team2_id: int, last: int = 10
-    ) -> List[Dict[str, Any]]:
+    def get_h2h(self, team1_id: int, team2_id: int, last: int = 10) -> list[dict[str, Any]]:
         """
         Get head-to-head matches between two teams.
 
@@ -310,7 +310,6 @@ class APIFootballClient:
 
 def main() -> None:
     """Example usage of API Football client."""
-    import json
 
     # This will fail if API key is not set
     try:

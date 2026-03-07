@@ -16,7 +16,6 @@ Pipeline steps (in order):
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
 import pandas as pd
 import psycopg2
@@ -32,7 +31,7 @@ logger = logging.getLogger(__name__)
 class SoccerdataETL:
     """ETL pipeline for loading soccerdata into PostgreSQL."""
 
-    def __init__(self, seasons: Optional[list[str]] = None) -> None:
+    def __init__(self, seasons: list[str] | None = None) -> None:
         self.settings = get_settings()
         self.client = SoccerdataClient(seasons=seasons)
         self.conn = get_sd_connection()
@@ -53,9 +52,7 @@ class SoccerdataETL:
                        ON CONFLICT (canonical_name) DO NOTHING""",
                     (canonical,),
                 )
-                cur.execute(
-                    "SELECT id FROM teams WHERE canonical_name = %s", (canonical,)
-                )
+                cur.execute("SELECT id FROM teams WHERE canonical_name = %s", (canonical,))
                 team_id = cur.fetchone()[0]
 
                 for source, source_name in sources.items():
@@ -86,9 +83,7 @@ class SoccerdataETL:
     def _get_season_id(self, season_code: str) -> int:
         """Get season_id from season_code."""
         with self.conn.cursor() as cur:
-            cur.execute(
-                "SELECT id FROM seasons WHERE season_code = %s", (season_code,)
-            )
+            cur.execute("SELECT id FROM seasons WHERE season_code = %s", (season_code,))
             result = cur.fetchone()
             if not result:
                 raise ValueError(f"Season '{season_code}' not found in database")
@@ -101,7 +96,7 @@ class SoccerdataETL:
         season_code: str,
         status: str,
         rows: int = 0,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> None:
         """Log an ETL operation."""
         with self.conn.cursor() as cur:
@@ -122,9 +117,7 @@ class SoccerdataETL:
             )
             self.conn.commit()
 
-    def _is_etl_completed(
-        self, source: str, operation: str, season_code: str
-    ) -> bool:
+    def _is_etl_completed(self, source: str, operation: str, season_code: str) -> bool:
         """Check if an ETL operation has already completed."""
         with self.conn.cursor() as cur:
             cur.execute(
@@ -137,7 +130,7 @@ class SoccerdataETL:
 
     def _find_match_id(
         self, season_id: int, match_date: object, home_team_id: int, away_team_id: int
-    ) -> Optional[int]:
+    ) -> int | None:
         """Find a match by season, date (with +/-1 day tolerance), and teams."""
         with self.conn.cursor() as cur:
             cur.execute(
@@ -159,7 +152,7 @@ class SoccerdataETL:
             return result[0] if result else None
 
     @staticmethod
-    def _safe_int(value: object) -> Optional[int]:
+    def _safe_int(value: object) -> int | None:
         if pd.isna(value) or value is None:
             return None
         try:
@@ -168,7 +161,7 @@ class SoccerdataETL:
             return None
 
     @staticmethod
-    def _safe_float(value: object) -> Optional[float]:
+    def _safe_float(value: object) -> float | None:
         if pd.isna(value) or value is None:
             return None
         try:
@@ -180,7 +173,7 @@ class SoccerdataETL:
     # STEP 1: MatchHistory (Football-Data.co.uk)
     # ================================================================
 
-    def load_match_history(self, seasons: Optional[list[str]] = None) -> int:
+    def load_match_history(self, seasons: list[str] | None = None) -> int:
         """Load match data from Football-Data.co.uk.
 
         Primary base data source: CSV-based, no rate limiting.
@@ -350,7 +343,7 @@ class SoccerdataETL:
         "offsides": "offsides",
     }
 
-    def load_espn_match_stats(self, seasons: Optional[list[str]] = None) -> int:
+    def load_espn_match_stats(self, seasons: list[str] | None = None) -> int:
         """Load ESPN match stats, enriching existing matches with advanced stats.
 
         Fetches ESPN schedule to get game_ids, then fetches each matchsheet
@@ -414,9 +407,7 @@ class SoccerdataETL:
             match_date = pd.to_datetime(match_date_raw).date()
 
             # Find the match in our DB (inserted by MatchHistory)
-            match_id = self._find_match_id(
-                season_id, match_date, home_team_id, away_team_id
-            )
+            match_id = self._find_match_id(season_id, match_date, home_team_id, away_team_id)
             if not match_id:
                 matches_skipped += 1
                 continue
@@ -449,7 +440,9 @@ class SoccerdataETL:
                     continue
 
                 is_home_val = ms_row.get("is_home")
-                is_home = bool(is_home_val) if not pd.isna(is_home_val) else (team_id == home_team_id)
+                is_home = (
+                    bool(is_home_val) if not pd.isna(is_home_val) else (team_id == home_team_id)
+                )
 
                 self._store_espn_team_stats(match_id, team_id, is_home, ms_row)
 
@@ -460,9 +453,7 @@ class SoccerdataETL:
             self.conn.commit()
 
             if matches_processed % 50 == 0:
-                logger.info(
-                    f"  ESPN progress: {matches_processed} matches processed"
-                )
+                logger.info(f"  ESPN progress: {matches_processed} matches processed")
 
         if matches_skipped > 0:
             logger.info(
@@ -484,9 +475,7 @@ class SoccerdataETL:
                 (str(game_id), match_id),
             )
 
-    def _update_match_espn_venue(
-        self, match_id: int, ms_reset: pd.DataFrame
-    ) -> None:
+    def _update_match_espn_venue(self, match_id: int, ms_reset: pd.DataFrame) -> None:
         """Update match venue and attendance from ESPN data."""
         first_row = ms_reset.iloc[0] if len(ms_reset) > 0 else None
         if first_row is None:
@@ -549,7 +538,7 @@ class SoccerdataETL:
     # STEP 3: FBref Schedule (xG enrichment) - Optional
     # ================================================================
 
-    def load_fbref_schedule(self, seasons: Optional[list[str]] = None) -> int:
+    def load_fbref_schedule(self, seasons: list[str] | None = None) -> int:
         """Load FBref schedule data, enriching existing matches with xG."""
         total_updated = 0
         target_seasons = seasons or self.client.seasons
@@ -817,8 +806,8 @@ class SoccerdataETL:
 
     def load_fbref_team_match_stats(
         self,
-        stat_types: Optional[list[str]] = None,
-        seasons: Optional[list[str]] = None,
+        stat_types: list[str] | None = None,
+        seasons: list[str] | None = None,
     ) -> int:
         """Load advanced team match stats from FBref into match_advanced_stats.
 
@@ -848,27 +837,19 @@ class SoccerdataETL:
 
                 try:
                     self._log_etl("fbref", etl_key, season, "started")
-                    df = self.client.fetch_team_match_stats(
-                        stat_type, seasons=[season]
-                    )
+                    df = self.client.fetch_team_match_stats(stat_type, seasons=[season])
                     count = self._store_team_match_stats(df, stat_type, season)
                     total += count
                     self._log_etl("fbref", etl_key, season, "completed", count)
-                    logger.info(
-                        f"Loaded {count} rows for FBref {stat_type} season {season}"
-                    )
+                    logger.info(f"Loaded {count} rows for FBref {stat_type} season {season}")
                 except Exception as e:
-                    logger.error(
-                        f"Error loading FBref {stat_type} for {season}: {e}"
-                    )
+                    logger.error(f"Error loading FBref {stat_type} for {season}: {e}")
                     self._log_etl("fbref", etl_key, season, "failed", error=str(e))
                     continue
 
         return total
 
-    def _store_team_match_stats(
-        self, df: pd.DataFrame, stat_type: str, season_code: str
-    ) -> int:
+    def _store_team_match_stats(self, df: pd.DataFrame, stat_type: str, season_code: str) -> int:
         """Store team match stats, updating appropriate columns by stat_type."""
         season_id = self._get_season_id(season_code)
         column_map = self.STAT_COLUMN_MAP.get(stat_type, {})
@@ -912,9 +893,7 @@ class SoccerdataETL:
                         match_id = None
 
                     if not match_id:
-                        logger.debug(
-                            f"No match found for {team_name} on {match_date}, skipping"
-                        )
+                        logger.debug(f"No match found for {team_name} on {match_date}, skipping")
                         continue
 
                     # Build the SET clause dynamically based on available columns
@@ -935,9 +914,8 @@ class SoccerdataETL:
 
                     # INSERT or UPDATE
                     set_clause = ", ".join(set_parts)
-                    update_clause = ", ".join(
-                        f"{p.split(' = ')[0]} = EXCLUDED.{p.split(' = ')[0]}"
-                        for p in set_parts
+                    ", ".join(
+                        f"{p.split(' = ')[0]} = EXCLUDED.{p.split(' = ')[0]}" for p in set_parts
                     )
 
                     # First ensure a row exists
@@ -974,7 +952,7 @@ class SoccerdataETL:
     # STEP 4: Compute Standings
     # ================================================================
 
-    def compute_standings(self, seasons: Optional[list[str]] = None) -> int:
+    def compute_standings(self, seasons: list[str] | None = None) -> int:
         """Compute league standings per matchweek from match results."""
         total = 0
         target_seasons = seasons or self.client.seasons
@@ -992,9 +970,7 @@ class SoccerdataETL:
                 logger.info(f"Computed {count} standing rows for season {season}")
             except Exception as e:
                 logger.error(f"Error computing standings for {season}: {e}")
-                self._log_etl(
-                    "computed", "standings", season, "failed", error=str(e)
-                )
+                self._log_etl("computed", "standings", season, "failed", error=str(e))
                 raise
 
         return total
@@ -1033,8 +1009,12 @@ class SoccerdataETL:
                 for tid in [home_id, away_id]:
                     if tid not in team_stats:
                         team_stats[tid] = {
-                            "mp": 0, "w": 0, "d": 0, "l": 0,
-                            "gf": 0, "ga": 0,
+                            "mp": 0,
+                            "w": 0,
+                            "d": 0,
+                            "l": 0,
+                            "gf": 0,
+                            "ga": 0,
                         }
 
                 # Update home team
@@ -1121,9 +1101,18 @@ class SoccerdataETL:
                        goal_difference = EXCLUDED.goal_difference,
                        points = EXCLUDED.points""",
                 (
-                    season_id, match_week, team_id, position,
-                    stats["mp"], stats["w"], stats["d"], stats["l"],
-                    stats["gf"], stats["ga"], gd, points,
+                    season_id,
+                    match_week,
+                    team_id,
+                    position,
+                    stats["mp"],
+                    stats["w"],
+                    stats["d"],
+                    stats["l"],
+                    stats["gf"],
+                    stats["ga"],
+                    gd,
+                    points,
                 ),
             )
             rows += 1
@@ -1134,7 +1123,7 @@ class SoccerdataETL:
     # STEP 5: Player Match Stats (Optional)
     # ================================================================
 
-    def load_player_match_stats(self, seasons: Optional[list[str]] = None) -> int:
+    def load_player_match_stats(self, seasons: list[str] | None = None) -> int:
         """Load player-level match stats from FBref."""
         total = 0
         target_seasons = seasons or self.client.seasons
@@ -1146,9 +1135,7 @@ class SoccerdataETL:
 
             try:
                 self._log_etl("fbref", "player_match_stats", season, "started")
-                df = self.client.fetch_player_match_stats(
-                    stat_type="summary", seasons=[season]
-                )
+                df = self.client.fetch_player_match_stats(stat_type="summary", seasons=[season])
 
                 if df.empty:
                     self._log_etl("fbref", "player_match_stats", season, "completed", 0)
@@ -1156,22 +1143,16 @@ class SoccerdataETL:
 
                 count = self._store_player_match_stats(df, season)
                 total += count
-                self._log_etl(
-                    "fbref", "player_match_stats", season, "completed", count
-                )
+                self._log_etl("fbref", "player_match_stats", season, "completed", count)
                 logger.info(f"Loaded {count} player stat rows for {season}")
             except Exception as e:
                 logger.error(f"Error loading player stats for {season}: {e}")
-                self._log_etl(
-                    "fbref", "player_match_stats", season, "failed", error=str(e)
-                )
+                self._log_etl("fbref", "player_match_stats", season, "failed", error=str(e))
                 continue
 
         return total
 
-    def _store_player_match_stats(
-        self, df: pd.DataFrame, season_code: str
-    ) -> int:
+    def _store_player_match_stats(self, df: pd.DataFrame, season_code: str) -> int:
         """Store player match stats into match_player_stats table."""
         season_id = self._get_season_id(season_code)
         rows_stored = 0
@@ -1239,8 +1220,13 @@ class SoccerdataETL:
                             yellow_cards = EXCLUDED.yellow_cards,
                             red_cards = EXCLUDED.red_cards""",
                         (
-                            match_id, team_id, is_home, str(player_name),
-                            row.get("nation"), row.get("pos"), row.get("age"),
+                            match_id,
+                            team_id,
+                            is_home,
+                            str(player_name),
+                            row.get("nation"),
+                            row.get("pos"),
+                            row.get("age"),
                             self._safe_int(row.get("Min")),
                             self._safe_int(row.get("Gls")),
                             self._safe_int(row.get("Ast")),
@@ -1285,7 +1271,7 @@ class SoccerdataETL:
     # STEP 6: Shot Events (Optional)
     # ================================================================
 
-    def load_shot_events(self, seasons: Optional[list[str]] = None) -> int:
+    def load_shot_events(self, seasons: list[str] | None = None) -> int:
         """Load per-shot event data from FBref."""
         total = 0
         target_seasons = seasons or self.client.seasons
@@ -1309,16 +1295,14 @@ class SoccerdataETL:
                 logger.info(f"Loaded {count} shot events for {season}")
             except Exception as e:
                 logger.error(f"Error loading shot events for {season}: {e}")
-                self._log_etl(
-                    "fbref", "shot_events", season, "failed", error=str(e)
-                )
+                self._log_etl("fbref", "shot_events", season, "failed", error=str(e))
                 continue
 
         return total
 
     def _store_shot_events(self, df: pd.DataFrame, season_code: str) -> int:
         """Store shot events into shot_events table."""
-        season_id = self._get_season_id(season_code)
+        self._get_season_id(season_code)
         rows_stored = 0
         df_reset = df.reset_index()
 
@@ -1354,7 +1338,8 @@ class SoccerdataETL:
                             xg, psxg, outcome, distance, body_part, notes
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                         (
-                            match_id, team_id,
+                            match_id,
+                            team_id,
                             self._safe_int(row.get("minute")),
                             row.get("player"),
                             self._safe_float(row.get("xG")),
@@ -1382,7 +1367,7 @@ class SoccerdataETL:
     # Full Pipeline
     # ================================================================
 
-    def run_full_pipeline(self, seasons: Optional[list[str]] = None) -> dict[str, int]:
+    def run_full_pipeline(self, seasons: list[str] | None = None) -> dict[str, int]:
         """Run the complete ETL pipeline in order.
 
         Steps: MatchHistory -> ESPN Stats -> Standings.
@@ -1459,9 +1444,7 @@ def main() -> None:
     args = parser.parse_args()
 
     seasons = [s.strip() for s in args.seasons.split(",")] if args.seasons else None
-    stat_types = (
-        [s.strip() for s in args.stat_types.split(",")] if args.stat_types else None
-    )
+    stat_types = [s.strip() for s in args.stat_types.split(",")] if args.stat_types else None
 
     etl = SoccerdataETL(seasons=seasons)
 
@@ -1481,9 +1464,7 @@ def main() -> None:
             count = etl.load_fbref_schedule(seasons)
             logger.info(f"FBref schedule: {count} rows")
         elif args.step == "fbref-stats":
-            count = etl.load_fbref_team_match_stats(
-                stat_types=stat_types, seasons=seasons
-            )
+            count = etl.load_fbref_team_match_stats(stat_types=stat_types, seasons=seasons)
             logger.info(f"FBref stats: {count} rows")
         elif args.step == "player-stats":
             count = etl.load_player_match_stats(seasons)
@@ -1501,8 +1482,8 @@ def main() -> None:
 def _clear_etl_log(
     conn: psycopg2.extensions.connection,
     step: str,
-    stat_types: Optional[list[str]],
-    seasons: Optional[list[str]],
+    stat_types: list[str] | None,
+    seasons: list[str] | None,
 ) -> None:
     """Clear etl_log entries for --force re-runs."""
     source_map = {
@@ -1520,9 +1501,7 @@ def _clear_etl_log(
         if step == "all":
             if seasons:
                 for s in seasons:
-                    cur.execute(
-                        "DELETE FROM etl_log WHERE season_code = %s", (s,)
-                    )
+                    cur.execute("DELETE FROM etl_log WHERE season_code = %s", (s,))
             else:
                 cur.execute("DELETE FROM etl_log")
         else:

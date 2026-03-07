@@ -12,7 +12,6 @@ Usage:
 import argparse
 import logging
 import warnings
-from typing import Optional
 
 import psycopg2
 
@@ -24,9 +23,7 @@ from .predict import load_trained_models, predict_match
 logger = logging.getLogger(__name__)
 
 
-def get_jornada_matches(
-    season_code: str, jornada: int
-) -> list[dict]:
+def get_jornada_matches(season_code: str, jornada: int) -> list[dict]:
     """Fetch matches for a specific jornada from the database.
 
     Matches are assigned to jornadas by ordering them by date
@@ -89,17 +86,19 @@ def get_jornada_matches(
             if r[3] is not None and r[4] is not None:
                 total_goals = r[3] + r[4]
 
-            matches.append({
-                "home_team": r[0],
-                "away_team": r[1],
-                "match_date": str(r[2]),
-                "home_score": r[3],
-                "away_score": r[4],
-                "result": r[5],
-                "total_goals": total_goals,
-                "total_cards": total_cards,
-                "played": r[3] is not None,
-            })
+            matches.append(
+                {
+                    "home_team": r[0],
+                    "away_team": r[1],
+                    "match_date": str(r[2]),
+                    "home_score": r[3],
+                    "away_score": r[4],
+                    "result": r[5],
+                    "total_goals": total_goals,
+                    "total_cards": total_cards,
+                    "played": r[3] is not None,
+                }
+            )
         return matches
     finally:
         conn.close()
@@ -147,7 +146,7 @@ def get_latest_jornada(season_code: str) -> int:
         conn.close()
 
 
-def _get_ou_prob(pred: dict, category: str, line: str) -> Optional[float]:
+def _get_ou_prob(pred: dict, category: str, line: str) -> float | None:
     """Extract over probability from prediction dict."""
     ou = pred.get("predictions", {}).get(f"{category}_over_under", {})
     entry = ou.get(line, {})
@@ -157,8 +156,8 @@ def _get_ou_prob(pred: dict, category: str, line: str) -> Optional[float]:
 def predict_jornada(
     jornada: int,
     season_code: str = "2526",
-    models: Optional[dict] = None,
-    builder: Optional[MatchFeatureBuilder] = None,
+    models: dict | None = None,
+    builder: MatchFeatureBuilder | None = None,
 ) -> dict:
     """Predict all matches for a jornada.
 
@@ -167,9 +166,7 @@ def predict_jornada(
     matches = get_jornada_matches(season_code, jornada)
 
     if not matches:
-        raise ValueError(
-            f"No matches found for jornada {jornada} in season {season_code}"
-        )
+        raise ValueError(f"No matches found for jornada {jornada} in season {season_code}")
 
     if models is None:
         models = load_trained_models()
@@ -235,14 +232,12 @@ def predict_jornada(
         "matches": results,
         "played": total_played,
         "hits": aciertos_winner,
-        "accuracy": (
-            round(aciertos_winner / total_played * 100, 1) if total_played > 0 else None
-        ),
+        "accuracy": (round(aciertos_winner / total_played * 100, 1) if total_played > 0 else None),
         "pending": len(matches) - total_played,
     }
 
 
-def _fmt_ou(ou_dict: dict, line: str, real_value: Optional[int]) -> str:
+def _fmt_ou(ou_dict: dict, line: str, real_value: int | None) -> str:
     """Format over/under probability for display.
 
     Returns something like 'O2.5 68% ✓' or 'U2.5 55% ✗'.
@@ -349,10 +344,7 @@ def print_jornada_report(data: dict) -> None:
             )
 
         print("-" * 105)
-        print(
-            f"  Aciertos ganador: {data['hits']}/{data['played']}"
-            f" ({data['accuracy']:.0f}%)"
-        )
+        print(f"  Aciertos ganador: {data['hits']}/{data['played']}" f" ({data['accuracy']:.0f}%)")
         if goals_total > 0:
             print(
                 f"  Aciertos goles O/U 2.5: {goals_hits}/{goals_total}"
@@ -422,17 +414,17 @@ def main() -> None:
     """CLI entry point."""
     warnings.filterwarnings("ignore")
 
-    parser = argparse.ArgumentParser(
-        description="Predict all matches for a La Liga matchday"
-    )
+    parser = argparse.ArgumentParser(description="Predict all matches for a La Liga matchday")
     parser.add_argument(
-        "--jornada", "-j",
+        "--jornada",
+        "-j",
         type=int,
         default=None,
         help="Matchday number (default: latest available)",
     )
     parser.add_argument(
-        "--season", "-s",
+        "--season",
+        "-s",
         type=str,
         default="2526",
         help="Season code (default: 2526)",

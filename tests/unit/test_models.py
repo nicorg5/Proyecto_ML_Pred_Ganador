@@ -15,7 +15,6 @@ import pytest
 from src.laliga_predictor.models.base import BasePredictor
 from src.laliga_predictor.models.calibration import (
     CalibratedPredictor,
-    optimize_classification_thresholds,
 )
 from src.laliga_predictor.models.classifiers import (
     HomeAlwaysWinsBaseline,
@@ -24,7 +23,6 @@ from src.laliga_predictor.models.classifiers import (
     XGBoostWinner,
 )
 from src.laliga_predictor.models.over_under import (
-    LightGBMOverUnder,
     OverUnderBaseline,
     XGBoostOverUnder,
 )
@@ -36,9 +34,7 @@ def sample_classification_data():
     """Small classification dataset for quick tests."""
     rng = np.random.default_rng(42)
     n = 100
-    X = pd.DataFrame({
-        f"feat_{i}": rng.normal(0, 1, n) for i in range(10)
-    })
+    X = pd.DataFrame({f"feat_{i}": rng.normal(0, 1, n) for i in range(10)})
     y = pd.Series(rng.choice(["H", "D", "A"], n, p=[0.45, 0.27, 0.28]))
     return X, y
 
@@ -48,9 +44,7 @@ def sample_regression_data():
     """Small regression dataset for quick tests."""
     rng = np.random.default_rng(42)
     n = 100
-    X = pd.DataFrame({
-        f"feat_{i}": rng.normal(0, 1, n) for i in range(10)
-    })
+    X = pd.DataFrame({f"feat_{i}": rng.normal(0, 1, n) for i in range(10)})
     y = pd.Series(rng.poisson(2.7, n).astype(float))
     return X, y
 
@@ -60,9 +54,7 @@ def sample_binary_data():
     """Small binary dataset for over/under tests."""
     rng = np.random.default_rng(42)
     n = 100
-    X = pd.DataFrame({
-        f"feat_{i}": rng.normal(0, 1, n) for i in range(10)
-    })
+    X = pd.DataFrame({f"feat_{i}": rng.normal(0, 1, n) for i in range(10)})
     y = pd.Series(rng.choice([0, 1], n, p=[0.45, 0.55]))
     return X, y
 
@@ -70,34 +62,43 @@ def sample_binary_data():
 class TestClassifierInterface:
     """All classifiers must implement BasePredictor correctly."""
 
-    @pytest.mark.parametrize("model_cls", [
-        HomeAlwaysWinsBaseline,
-        RandomForestWinner,
-        XGBoostWinner,
-        LightGBMWinner,
-    ])
+    @pytest.mark.parametrize(
+        "model_cls",
+        [
+            HomeAlwaysWinsBaseline,
+            RandomForestWinner,
+            XGBoostWinner,
+            LightGBMWinner,
+        ],
+    )
     def test_is_base_predictor(self, model_cls):
         model = model_cls()
         assert isinstance(model, BasePredictor)
 
-    @pytest.mark.parametrize("model_cls", [
-        HomeAlwaysWinsBaseline,
-        RandomForestWinner,
-        XGBoostWinner,
-        LightGBMWinner,
-    ])
+    @pytest.mark.parametrize(
+        "model_cls",
+        [
+            HomeAlwaysWinsBaseline,
+            RandomForestWinner,
+            XGBoostWinner,
+            LightGBMWinner,
+        ],
+    )
     def test_fit_returns_self(self, model_cls, sample_classification_data):
         X, y = sample_classification_data
         model = model_cls()
         result = model.fit(X, y)
         assert result is model
 
-    @pytest.mark.parametrize("model_cls", [
-        HomeAlwaysWinsBaseline,
-        RandomForestWinner,
-        XGBoostWinner,
-        LightGBMWinner,
-    ])
+    @pytest.mark.parametrize(
+        "model_cls",
+        [
+            HomeAlwaysWinsBaseline,
+            RandomForestWinner,
+            XGBoostWinner,
+            LightGBMWinner,
+        ],
+    )
     def test_predict_shape(self, model_cls, sample_classification_data):
         X, y = sample_classification_data
         model = model_cls()
@@ -105,12 +106,15 @@ class TestClassifierInterface:
         preds = model.predict(X)
         assert len(preds) == len(X)
 
-    @pytest.mark.parametrize("model_cls", [
-        HomeAlwaysWinsBaseline,
-        RandomForestWinner,
-        XGBoostWinner,
-        LightGBMWinner,
-    ])
+    @pytest.mark.parametrize(
+        "model_cls",
+        [
+            HomeAlwaysWinsBaseline,
+            RandomForestWinner,
+            XGBoostWinner,
+            LightGBMWinner,
+        ],
+    )
     def test_predict_valid_classes(self, model_cls, sample_classification_data):
         X, y = sample_classification_data
         model = model_cls()
@@ -119,12 +123,15 @@ class TestClassifierInterface:
         valid = {"H", "D", "A"}
         assert set(preds).issubset(valid)
 
-    @pytest.mark.parametrize("model_cls", [
-        HomeAlwaysWinsBaseline,
-        RandomForestWinner,
-        XGBoostWinner,
-        LightGBMWinner,
-    ])
+    @pytest.mark.parametrize(
+        "model_cls",
+        [
+            HomeAlwaysWinsBaseline,
+            RandomForestWinner,
+            XGBoostWinner,
+            LightGBMWinner,
+        ],
+    )
     def test_predict_proba_shape(self, model_cls, sample_classification_data):
         """predict_proba must return shape (n_samples, 3) with probabilities summing to ~1."""
         X, y = sample_classification_data
@@ -138,12 +145,15 @@ class TestClassifierInterface:
         # All probabilities should be non-negative
         assert (proba >= 0).all()
 
-    @pytest.mark.parametrize("model_cls", [
-        HomeAlwaysWinsBaseline,
-        RandomForestWinner,
-        XGBoostWinner,
-        LightGBMWinner,
-    ])
+    @pytest.mark.parametrize(
+        "model_cls",
+        [
+            HomeAlwaysWinsBaseline,
+            RandomForestWinner,
+            XGBoostWinner,
+            LightGBMWinner,
+        ],
+    )
     def test_feature_importance(self, model_cls, sample_classification_data):
         X, y = sample_classification_data
         model = model_cls()
@@ -155,12 +165,15 @@ class TestClassifierInterface:
         assert "importance" in importance.columns
         assert len(importance) == X.shape[1]
 
-    @pytest.mark.parametrize("model_cls", [
-        HomeAlwaysWinsBaseline,
-        RandomForestWinner,
-        XGBoostWinner,
-        LightGBMWinner,
-    ])
+    @pytest.mark.parametrize(
+        "model_cls",
+        [
+            HomeAlwaysWinsBaseline,
+            RandomForestWinner,
+            XGBoostWinner,
+            LightGBMWinner,
+        ],
+    )
     def test_feature_names_stored(self, model_cls, sample_classification_data):
         X, y = sample_classification_data
         model = model_cls()
@@ -311,9 +324,7 @@ class TestCalibratedPredictor:
         assert proba.shape == (len(X_val), 2)
         np.testing.assert_allclose(proba.sum(axis=1), 1.0, atol=1e-5)
 
-    def test_threshold_optimization_returns_valid_thresholds(
-        self, sample_classification_data
-    ):
+    def test_threshold_optimization_returns_valid_thresholds(self, sample_classification_data):
         X, y = sample_classification_data
         X_train, X_val = X[:70], X[70:]
         y_train, y_val = y[:70], y[70:]
@@ -346,12 +357,15 @@ class TestCalibratedPredictor:
 class TestModelSaveLoad:
     """Test model serialization and deserialization."""
 
-    @pytest.mark.parametrize("model_cls", [
-        HomeAlwaysWinsBaseline,
-        RandomForestWinner,
-        XGBoostWinner,
-        LightGBMWinner,
-    ])
+    @pytest.mark.parametrize(
+        "model_cls",
+        [
+            HomeAlwaysWinsBaseline,
+            RandomForestWinner,
+            XGBoostWinner,
+            LightGBMWinner,
+        ],
+    )
     def test_classifier_save_load_produces_same_predictions(
         self, model_cls, sample_classification_data
     ):
@@ -405,8 +419,9 @@ class TestTemporalCV:
 
     def test_splits_respect_temporal_order(self):
         """Train seasons must always come before validation season."""
-        seasons = pd.Series(["1718"] * 10 + ["1819"] * 10 + ["1920"] * 10 +
-                            ["2021"] * 10 + ["2122"] * 10)
+        seasons = pd.Series(
+            ["1718"] * 10 + ["1819"] * 10 + ["1920"] * 10 + ["2021"] * 10 + ["2122"] * 10
+        )
         X = pd.DataFrame({"feat": range(50)})
         cv = SeasonalTimeSeriesSplit(min_train_seasons=3)
 
@@ -422,8 +437,9 @@ class TestTemporalCV:
 
     def test_no_train_val_overlap(self):
         """Train and validation indices must not overlap."""
-        seasons = pd.Series(["1718"] * 10 + ["1819"] * 10 + ["1920"] * 10 +
-                            ["2021"] * 10 + ["2122"] * 10)
+        seasons = pd.Series(
+            ["1718"] * 10 + ["1819"] * 10 + ["1920"] * 10 + ["2021"] * 10 + ["2122"] * 10
+        )
         X = pd.DataFrame({"feat": range(50)})
         cv = SeasonalTimeSeriesSplit(min_train_seasons=3)
 
@@ -432,8 +448,9 @@ class TestTemporalCV:
 
     def test_expanding_window(self):
         """Each fold should have more training data than the previous."""
-        seasons = pd.Series(["1718"] * 10 + ["1819"] * 10 + ["1920"] * 10 +
-                            ["2021"] * 10 + ["2122"] * 10)
+        seasons = pd.Series(
+            ["1718"] * 10 + ["1819"] * 10 + ["1920"] * 10 + ["2021"] * 10 + ["2122"] * 10
+        )
         X = pd.DataFrame({"feat": range(50)})
         cv = SeasonalTimeSeriesSplit(min_train_seasons=3)
 
@@ -446,8 +463,9 @@ class TestTemporalCV:
             assert train_sizes[i] > train_sizes[i - 1]
 
     def test_n_splits(self):
-        seasons = pd.Series(["1718"] * 10 + ["1819"] * 10 + ["1920"] * 10 +
-                            ["2021"] * 10 + ["2122"] * 10)
+        seasons = pd.Series(
+            ["1718"] * 10 + ["1819"] * 10 + ["1920"] * 10 + ["2021"] * 10 + ["2122"] * 10
+        )
         cv = SeasonalTimeSeriesSplit(min_train_seasons=3)
 
         assert cv.get_n_splits(seasons) == 2  # 5 seasons - 3 min = 2 splits
@@ -459,4 +477,3 @@ class TestTemporalCV:
 
         with pytest.raises(ValueError, match="Need at least"):
             list(cv.split(X, seasons))
-

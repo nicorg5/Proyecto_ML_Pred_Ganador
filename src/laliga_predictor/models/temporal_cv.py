@@ -3,7 +3,7 @@ Temporal cross-validation for time-ordered football data.
 """
 
 import logging
-from typing import Iterator
+from collections.abc import Iterator
 
 import numpy as np
 import pandas as pd

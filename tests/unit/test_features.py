@@ -5,9 +5,7 @@ Tests anti-data-leakage, rolling average correctness,
 edge cases, and feature consistency.
 """
 
-import numpy as np
 import pandas as pd
-import pytest
 
 from src.laliga_predictor.features.feature_engineering import (
     MatchFeatureBuilder,
@@ -25,7 +23,9 @@ class TestAntiLeakage:
     ):
         """Features for each match must only use data from BEFORE that match."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3, 5],
         )
         dataset = builder.build_dataset()
@@ -50,15 +50,20 @@ class TestAntiLeakage:
     ):
         """Feature columns must not contain the match's own result data."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
 
-        feature_cols = [c for c in dataset.columns if c.startswith(("h_", "a_", "h2h_",
-                                                                     "position_", "points_",
-                                                                     "rest_", "match_week",
-                                                                     "is_"))]
+        feature_cols = [
+            c
+            for c in dataset.columns
+            if c.startswith(
+                ("h_", "a_", "h2h_", "position_", "points_", "rest_", "match_week", "is_")
+            )
+        ]
         # Targets should be separate columns
         assert "target_result" in dataset.columns
         assert "target_total_goals" in dataset.columns
@@ -73,7 +78,9 @@ class TestAntiLeakage:
     ):
         """Rolling averages must exclude the current match's data."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
 
@@ -96,7 +103,9 @@ class TestRollingAverageCorrectness:
     ):
         """Win rate must be between 0 and 1 (excludes difference features)."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3, 5],
         )
         dataset = builder.build_dataset()
@@ -112,7 +121,9 @@ class TestRollingAverageCorrectness:
     ):
         """Draw rate must be between 0 and 1."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
@@ -128,7 +139,9 @@ class TestRollingAverageCorrectness:
     ):
         """Average goals scored/conceded cannot be negative."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
@@ -149,12 +162,8 @@ class TestEdgeCases:
         # Use only the first season
         first_season = synthetic_matches["season_code"].unique()[0]
         s1_matches = synthetic_matches[synthetic_matches["season_code"] == first_season]
-        s1_adv = synthetic_advanced_stats[
-            synthetic_advanced_stats["season_code"] == first_season
-        ]
-        s1_standings = synthetic_standings[
-            synthetic_standings["season_code"] == first_season
-        ]
+        s1_adv = synthetic_advanced_stats[synthetic_advanced_stats["season_code"] == first_season]
+        s1_standings = synthetic_standings[synthetic_standings["season_code"] == first_season]
 
         builder = MatchFeatureBuilder(s1_matches, s1_adv, s1_standings, rolling_windows=[3])
         dataset = builder.build_dataset()
@@ -167,7 +176,9 @@ class TestEdgeCases:
     ):
         """Teams with no prior meetings should get h2h defaults."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
 
@@ -190,7 +201,9 @@ class TestFeatureConsistency:
     ):
         """All rows in the dataset should have the same number of columns."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3, 5, 10],
         )
         dataset = builder.build_dataset()
@@ -204,7 +217,9 @@ class TestFeatureConsistency:
     ):
         """Target columns must be present in the dataset."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
@@ -218,7 +233,9 @@ class TestFeatureConsistency:
     ):
         """Result target should only contain H, D, A."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
@@ -232,7 +249,9 @@ class TestFeatureConsistency:
     ):
         """Metadata columns should be present."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
@@ -249,7 +268,9 @@ class TestNewFeatures:
     ):
         """ELO features should be in the dataset."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
@@ -262,7 +283,9 @@ class TestNewFeatures:
     ):
         """ELO ratings should only use matches before cutoff date."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         # The ELO history should be keyed by date, and _get_latest_elo
@@ -282,7 +305,9 @@ class TestNewFeatures:
     ):
         """Streak features should be in the dataset."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
@@ -303,7 +328,9 @@ class TestNewFeatures:
     ):
         """EMA features should be in the dataset."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
@@ -318,7 +345,9 @@ class TestNewFeatures:
     ):
         """Difference features should be in the dataset."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
@@ -331,15 +360,22 @@ class TestNewFeatures:
     ):
         """Draw-likelihood and total goals features should be in the dataset."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3],
         )
         dataset = builder.build_dataset()
 
-        for col in ["defensive_similarity_5", "goals_diff_closeness_5",
-                     "form_similarity_5", "h2h_draw_rate",
-                     "h_avg_total_goals_5", "a_avg_total_goals_5",
-                     "avg_combined_total_goals_5"]:
+        for col in [
+            "defensive_similarity_5",
+            "goals_diff_closeness_5",
+            "form_similarity_5",
+            "h2h_draw_rate",
+            "h_avg_total_goals_5",
+            "a_avg_total_goals_5",
+            "avg_combined_total_goals_5",
+        ]:
             assert col in dataset.columns, f"Missing feature: {col}"
 
     def test_new_feature_count(
@@ -347,13 +383,23 @@ class TestNewFeatures:
     ):
         """Dataset should have more features after adding new ones."""
         builder = MatchFeatureBuilder(
-            synthetic_matches, synthetic_advanced_stats, synthetic_standings,
+            synthetic_matches,
+            synthetic_advanced_stats,
+            synthetic_standings,
             rolling_windows=[3, 5, 10],
         )
         dataset = builder.build_dataset()
 
-        meta = {"match_id", "match_date", "season_code", "home_team", "away_team",
-                "target_result", "target_total_goals", "target_total_cards"}
+        meta = {
+            "match_id",
+            "match_date",
+            "season_code",
+            "home_team",
+            "away_team",
+            "target_result",
+            "target_total_goals",
+            "target_total_cards",
+        }
         feature_count = len([c for c in dataset.columns if c not in meta])
         # 119 original + 28 new = ~147
         assert feature_count >= 140, f"Expected >=140 features, got {feature_count}"

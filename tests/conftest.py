@@ -3,8 +3,8 @@ Pytest configuration and shared fixtures.
 """
 
 import os
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import numpy as np
 import pandas as pd
@@ -78,32 +78,34 @@ def _make_matches(n_seasons: int = 2) -> pd.DataFrame:
                         result = "D"
 
                     match_date = base_date + pd.Timedelta(days=matchday * 7)
-                    rows.append({
-                        "match_id": match_id,
-                        "season_code": season,
-                        "match_date": match_date,
-                        "home_team": h_name,
-                        "away_team": a_name,
-                        "home_team_id": h_id,
-                        "away_team_id": a_id,
-                        "home_score": h_score,
-                        "away_score": a_score,
-                        "result": result,
-                        "home_shots": int(rng.poisson(12)),
-                        "away_shots": int(rng.poisson(10)),
-                        "home_shots_on_target": int(rng.poisson(4)),
-                        "away_shots_on_target": int(rng.poisson(3)),
-                        "home_corners": int(rng.poisson(5)),
-                        "away_corners": int(rng.poisson(4)),
-                        "home_fouls": int(rng.poisson(12)),
-                        "away_fouls": int(rng.poisson(12)),
-                        "home_yellow_cards": int(rng.poisson(2)),
-                        "away_yellow_cards": int(rng.poisson(2)),
-                        "home_red_cards": int(rng.poisson(0.1)),
-                        "away_red_cards": int(rng.poisson(0.1)),
-                        "venue": f"{h_name} Stadium",
-                        "attendance": int(rng.normal(40000, 10000)),
-                    })
+                    rows.append(
+                        {
+                            "match_id": match_id,
+                            "season_code": season,
+                            "match_date": match_date,
+                            "home_team": h_name,
+                            "away_team": a_name,
+                            "home_team_id": h_id,
+                            "away_team_id": a_id,
+                            "home_score": h_score,
+                            "away_score": a_score,
+                            "result": result,
+                            "home_shots": int(rng.poisson(12)),
+                            "away_shots": int(rng.poisson(10)),
+                            "home_shots_on_target": int(rng.poisson(4)),
+                            "away_shots_on_target": int(rng.poisson(3)),
+                            "home_corners": int(rng.poisson(5)),
+                            "away_corners": int(rng.poisson(4)),
+                            "home_fouls": int(rng.poisson(12)),
+                            "away_fouls": int(rng.poisson(12)),
+                            "home_yellow_cards": int(rng.poisson(2)),
+                            "away_yellow_cards": int(rng.poisson(2)),
+                            "home_red_cards": int(rng.poisson(0.1)),
+                            "away_red_cards": int(rng.poisson(0.1)),
+                            "venue": f"{h_name} Stadium",
+                            "attendance": int(rng.normal(40000, 10000)),
+                        }
+                    )
                     match_id += 1
                     matchday += 1
 
@@ -120,39 +122,41 @@ def _make_advanced_stats(matches: pd.DataFrame) -> pd.DataFrame:
     for _, m in matches.iterrows():
         for is_home in [True, False]:
             team_id = m["home_team_id"] if is_home else m["away_team_id"]
-            rows.append({
-                "match_id": m["match_id"],
-                "team_id": team_id,
-                "is_home": is_home,
-                "match_date": m["match_date"],
-                "season_code": m["season_code"],
-                "possession": round(rng.uniform(35, 65), 1),
-                "sh": int(rng.poisson(12)),
-                "sot": int(rng.poisson(4)),
-                "sot_pct": round(rng.uniform(20, 50), 1),
-                "passes_cmp": int(rng.poisson(350)),
-                "passes_att": int(rng.poisson(450)),
-                "passes_cmp_pct": round(rng.uniform(70, 90), 1),
-                "tackles": int(rng.poisson(18)),
-                "tackles_won": int(rng.poisson(10)),
-                "tackles_won_pct": round(rng.uniform(40, 70), 1),
-                "interceptions": int(rng.poisson(8)),
-                "clearances": int(rng.poisson(15)),
-                "clearances_effective": int(rng.poisson(10)),
-                "blocked_shots": int(rng.poisson(3)),
-                "crosses": int(rng.poisson(15)),
-                "crosses_cmp": int(rng.poisson(5)),
-                "crosses_cmp_pct": round(rng.uniform(20, 40), 1),
-                "long_balls_cmp": int(rng.poisson(8)),
-                "long_balls_att": int(rng.poisson(20)),
-                "long_balls_cmp_pct": round(rng.uniform(30, 60), 1),
-                "saves": int(rng.poisson(3)),
-                "corner_kicks": int(rng.poisson(5)),
-                "fouls_committed": int(rng.poisson(12)),
-                "cards_yellow": int(rng.poisson(2)),
-                "cards_red": int(rng.poisson(0.1)),
-                "offsides": int(rng.poisson(2)),
-            })
+            rows.append(
+                {
+                    "match_id": m["match_id"],
+                    "team_id": team_id,
+                    "is_home": is_home,
+                    "match_date": m["match_date"],
+                    "season_code": m["season_code"],
+                    "possession": round(rng.uniform(35, 65), 1),
+                    "sh": int(rng.poisson(12)),
+                    "sot": int(rng.poisson(4)),
+                    "sot_pct": round(rng.uniform(20, 50), 1),
+                    "passes_cmp": int(rng.poisson(350)),
+                    "passes_att": int(rng.poisson(450)),
+                    "passes_cmp_pct": round(rng.uniform(70, 90), 1),
+                    "tackles": int(rng.poisson(18)),
+                    "tackles_won": int(rng.poisson(10)),
+                    "tackles_won_pct": round(rng.uniform(40, 70), 1),
+                    "interceptions": int(rng.poisson(8)),
+                    "clearances": int(rng.poisson(15)),
+                    "clearances_effective": int(rng.poisson(10)),
+                    "blocked_shots": int(rng.poisson(3)),
+                    "crosses": int(rng.poisson(15)),
+                    "crosses_cmp": int(rng.poisson(5)),
+                    "crosses_cmp_pct": round(rng.uniform(20, 40), 1),
+                    "long_balls_cmp": int(rng.poisson(8)),
+                    "long_balls_att": int(rng.poisson(20)),
+                    "long_balls_cmp_pct": round(rng.uniform(30, 60), 1),
+                    "saves": int(rng.poisson(3)),
+                    "corner_kicks": int(rng.poisson(5)),
+                    "fouls_committed": int(rng.poisson(12)),
+                    "cards_yellow": int(rng.poisson(2)),
+                    "cards_red": int(rng.poisson(0.1)),
+                    "offsides": int(rng.poisson(2)),
+                }
+            )
 
     df = pd.DataFrame(rows)
     df["match_date"] = pd.to_datetime(df["match_date"])
@@ -169,8 +173,12 @@ def _make_standings(matches: pd.DataFrame) -> pd.DataFrame:
 
         for _, team in enumerate(TEAMS):
             team_stats[team[0]] = {
-                "wins": 0, "draws": 0, "losses": 0,
-                "goals_for": 0, "goals_against": 0, "points": 0,
+                "wins": 0,
+                "draws": 0,
+                "losses": 0,
+                "goals_for": 0,
+                "goals_against": 0,
+                "points": 0,
                 "matches_played": 0,
             }
 
@@ -209,21 +217,23 @@ def _make_standings(matches: pd.DataFrame) -> pd.DataFrame:
                 )
                 for pos, (tid, stats) in enumerate(sorted_teams, 1):
                     team_name = next(t[1] for t in TEAMS if t[0] == tid)
-                    rows.append({
-                        "season_code": season,
-                        "match_week": match_week,
-                        "team_id": tid,
-                        "team": team_name,
-                        "position": pos,
-                        "matches_played": stats["matches_played"],
-                        "wins": stats["wins"],
-                        "draws": stats["draws"],
-                        "losses": stats["losses"],
-                        "goals_for": stats["goals_for"],
-                        "goals_against": stats["goals_against"],
-                        "goal_difference": stats["goals_for"] - stats["goals_against"],
-                        "points": stats["points"],
-                    })
+                    rows.append(
+                        {
+                            "season_code": season,
+                            "match_week": match_week,
+                            "team_id": tid,
+                            "team": team_name,
+                            "position": pos,
+                            "matches_played": stats["matches_played"],
+                            "wins": stats["wins"],
+                            "draws": stats["draws"],
+                            "losses": stats["losses"],
+                            "goals_for": stats["goals_for"],
+                            "goals_against": stats["goals_against"],
+                            "goal_difference": stats["goals_for"] - stats["goals_against"],
+                            "points": stats["points"],
+                        }
+                    )
 
     return pd.DataFrame(rows)
 

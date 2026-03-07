@@ -7,7 +7,6 @@ to prevent data leakage.
 """
 
 import logging
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -60,12 +59,10 @@ class MatchFeatureBuilder:
         matches_df: pd.DataFrame,
         advanced_stats_df: pd.DataFrame,
         standings_df: pd.DataFrame,
-        rolling_windows: Optional[list[int]] = None,
+        rolling_windows: list[int] | None = None,
     ) -> None:
         settings = get_settings()
-        self.windows = rolling_windows or [
-            int(w) for w in settings.ROLLING_WINDOWS.split(",")
-        ]
+        self.windows = rolling_windows or [int(w) for w in settings.ROLLING_WINDOWS.split(",")]
 
         # Sort by date for correct temporal ordering
         self.matches = matches_df.sort_values("match_date").reset_index(drop=True)
@@ -87,55 +84,55 @@ class MatchFeatureBuilder:
         rows = []
         for _, m in self.matches.iterrows():
             # Home team perspective
-            rows.append({
-                "match_date": m["match_date"],
-                "match_id": m["match_id"],
-                "season_code": m["season_code"],
-                "team_id": m["home_team_id"],
-                "opponent_id": m["away_team_id"],
-                "is_home": True,
-                "goals_scored": m["home_score"],
-                "goals_conceded": m["away_score"],
-                "result": m["result"],
-                "points": 3 if m["result"] == "H" else (1 if m["result"] == "D" else 0),
-                "win": 1 if m["result"] == "H" else 0,
-                "draw": 1 if m["result"] == "D" else 0,
-                "clean_sheet": 1 if m["away_score"] == 0 else 0,
-                "shots": m.get("home_shots"),
-                "shots_on_target": m.get("home_shots_on_target"),
-                "corners": m.get("home_corners"),
-                "fouls": m.get("home_fouls"),
-                "yellow_cards": _safe_add(m.get("home_yellow_cards"), 0),
-                "red_cards": _safe_add(m.get("home_red_cards"), 0),
-                "total_cards": _safe_add(
-                    m.get("home_yellow_cards"), m.get("home_red_cards")
-                ),
-            })
+            rows.append(
+                {
+                    "match_date": m["match_date"],
+                    "match_id": m["match_id"],
+                    "season_code": m["season_code"],
+                    "team_id": m["home_team_id"],
+                    "opponent_id": m["away_team_id"],
+                    "is_home": True,
+                    "goals_scored": m["home_score"],
+                    "goals_conceded": m["away_score"],
+                    "result": m["result"],
+                    "points": 3 if m["result"] == "H" else (1 if m["result"] == "D" else 0),
+                    "win": 1 if m["result"] == "H" else 0,
+                    "draw": 1 if m["result"] == "D" else 0,
+                    "clean_sheet": 1 if m["away_score"] == 0 else 0,
+                    "shots": m.get("home_shots"),
+                    "shots_on_target": m.get("home_shots_on_target"),
+                    "corners": m.get("home_corners"),
+                    "fouls": m.get("home_fouls"),
+                    "yellow_cards": _safe_add(m.get("home_yellow_cards"), 0),
+                    "red_cards": _safe_add(m.get("home_red_cards"), 0),
+                    "total_cards": _safe_add(m.get("home_yellow_cards"), m.get("home_red_cards")),
+                }
+            )
             # Away team perspective
-            rows.append({
-                "match_date": m["match_date"],
-                "match_id": m["match_id"],
-                "season_code": m["season_code"],
-                "team_id": m["away_team_id"],
-                "opponent_id": m["home_team_id"],
-                "is_home": False,
-                "goals_scored": m["away_score"],
-                "goals_conceded": m["home_score"],
-                "result": m["result"],
-                "points": 3 if m["result"] == "A" else (1 if m["result"] == "D" else 0),
-                "win": 1 if m["result"] == "A" else 0,
-                "draw": 1 if m["result"] == "D" else 0,
-                "clean_sheet": 1 if m["home_score"] == 0 else 0,
-                "shots": m.get("away_shots"),
-                "shots_on_target": m.get("away_shots_on_target"),
-                "corners": m.get("away_corners"),
-                "fouls": m.get("away_fouls"),
-                "yellow_cards": _safe_add(m.get("away_yellow_cards"), 0),
-                "red_cards": _safe_add(m.get("away_red_cards"), 0),
-                "total_cards": _safe_add(
-                    m.get("away_yellow_cards"), m.get("away_red_cards")
-                ),
-            })
+            rows.append(
+                {
+                    "match_date": m["match_date"],
+                    "match_id": m["match_id"],
+                    "season_code": m["season_code"],
+                    "team_id": m["away_team_id"],
+                    "opponent_id": m["home_team_id"],
+                    "is_home": False,
+                    "goals_scored": m["away_score"],
+                    "goals_conceded": m["home_score"],
+                    "result": m["result"],
+                    "points": 3 if m["result"] == "A" else (1 if m["result"] == "D" else 0),
+                    "win": 1 if m["result"] == "A" else 0,
+                    "draw": 1 if m["result"] == "D" else 0,
+                    "clean_sheet": 1 if m["home_score"] == 0 else 0,
+                    "shots": m.get("away_shots"),
+                    "shots_on_target": m.get("away_shots_on_target"),
+                    "corners": m.get("away_corners"),
+                    "fouls": m.get("away_fouls"),
+                    "yellow_cards": _safe_add(m.get("away_yellow_cards"), 0),
+                    "red_cards": _safe_add(m.get("away_red_cards"), 0),
+                    "total_cards": _safe_add(m.get("away_yellow_cards"), m.get("away_red_cards")),
+                }
+            )
 
         df = pd.DataFrame(rows).sort_values("match_date").reset_index(drop=True)
         return df
@@ -201,9 +198,7 @@ class MatchFeatureBuilder:
 
         return history
 
-    def _elo_features(
-        self, home_id: int, away_id: int, cutoff: pd.Timestamp
-    ) -> dict:
+    def _elo_features(self, home_id: int, away_id: int, cutoff: pd.Timestamp) -> dict:
         """ELO rating features for a match."""
         h_elo = self._get_latest_elo(home_id, cutoff)
         a_elo = self._get_latest_elo(away_id, cutoff)
@@ -222,7 +217,7 @@ class MatchFeatureBuilder:
             "elo_expected_home": exp_home,
         }
 
-    def _get_latest_elo(self, team_id: int, cutoff: pd.Timestamp) -> Optional[float]:
+    def _get_latest_elo(self, team_id: int, cutoff: pd.Timestamp) -> float | None:
         """Get the most recent ELO rating before cutoff."""
         entries = self._elo_history.get(team_id, [])
         latest = None
@@ -279,9 +274,7 @@ class MatchFeatureBuilder:
             f"{prefix}_clean_sheet_streak": clean_sheet_streak,
         }
 
-    def _ema_features(
-        self, team_hist: pd.DataFrame, prefix: str, alpha: float = 0.3
-    ) -> dict:
+    def _ema_features(self, team_hist: pd.DataFrame, prefix: str, alpha: float = 0.3) -> dict:
         """Exponential moving average features (more weight on recent matches)."""
         if len(team_hist) < 2:
             return {
@@ -411,33 +404,35 @@ class MatchFeatureBuilder:
         season_code: str,
         home_team: str = "",
         away_team: str = "",
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Build features for a future match (prediction mode).
 
         Same as _build_features_for_match but accepts raw parameters
         instead of a match row.
         """
-        mock_row = pd.Series({
-            "match_id": -1,
-            "match_date": match_date,
-            "season_code": season_code,
-            "home_team": home_team,
-            "away_team": away_team,
-            "home_team_id": home_team_id,
-            "away_team_id": away_team_id,
-            "home_score": None,
-            "away_score": None,
-            "result": None,
-            "home_yellow_cards": None,
-            "away_yellow_cards": None,
-            "home_red_cards": None,
-            "away_red_cards": None,
-        })
+        mock_row = pd.Series(
+            {
+                "match_id": -1,
+                "match_date": match_date,
+                "season_code": season_code,
+                "home_team": home_team,
+                "away_team": away_team,
+                "home_team_id": home_team_id,
+                "away_team_id": away_team_id,
+                "home_score": None,
+                "away_score": None,
+                "result": None,
+                "home_yellow_cards": None,
+                "away_yellow_cards": None,
+                "home_red_cards": None,
+                "away_red_cards": None,
+            }
+        )
         return self._build_features_for_match(mock_row, include_targets=False)
 
     def _build_features_for_match(
         self, match: pd.Series, include_targets: bool = True
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Compute all pre-match features for a single match.
 
         CRITICAL: Only uses data with match_date < this match's date.
@@ -468,12 +463,8 @@ class MatchFeatureBuilder:
 
         # --- A. Rolling form features ---
         for window in self.windows:
-            features.update(
-                self._rolling_form(home_hist, f"h", window)
-            )
-            features.update(
-                self._rolling_form(away_hist, f"a", window)
-            )
+            features.update(self._rolling_form(home_hist, "h", window))
+            features.update(self._rolling_form(away_hist, "a", window))
 
         # --- B. Home/away specific form ---
         home_at_home = home_hist[home_hist["is_home"]]
@@ -491,9 +482,7 @@ class MatchFeatureBuilder:
         features.update(self._head_to_head(hist, home_id, away_id, 6))
 
         # --- E. Standings features ---
-        features.update(
-            self._standings_features(season, home_id, away_id, cutoff)
-        )
+        features.update(self._standings_features(season, home_id, away_id, cutoff))
 
         # --- F. Contextual features ---
         features.update(self._contextual_features(match, home_hist, away_hist))
@@ -521,9 +510,7 @@ class MatchFeatureBuilder:
         # --- M. H2H draw rate ---
         h2h_matches = features.get("h2h_total_matches", 0)
         h2h_draws = features.get("h2h_draws", 0)
-        features["h2h_draw_rate"] = (
-            h2h_draws / h2h_matches if h2h_matches > 0 else None
-        )
+        features["h2h_draw_rate"] = h2h_draws / h2h_matches if h2h_matches > 0 else None
 
         # --- Targets ---
         if include_targets:
@@ -600,9 +587,7 @@ class MatchFeatureBuilder:
             f"{prefix}_matches_available": count,
         }
 
-    def _advanced_rolling(
-        self, adv_hist: pd.DataFrame, prefix: str, n: int
-    ) -> dict:
+    def _advanced_rolling(self, adv_hist: pd.DataFrame, prefix: str, n: int) -> dict:
         """Rolling averages of ESPN advanced stats over last N matches."""
         last_n = adv_hist.tail(n)
         result = {}
@@ -650,9 +635,7 @@ class MatchFeatureBuilder:
             "h2h_away_wins": h2h_away["win"].sum() if len(h2h_away) > 0 else 0,
             "h2h_draws": h2h["draw"].sum(),
             "h2h_home_avg_goals": h2h["goals_scored"].mean(),
-            "h2h_away_avg_goals": (
-                h2h_away["goals_scored"].mean() if len(h2h_away) > 0 else None
-            ),
+            "h2h_away_avg_goals": (h2h_away["goals_scored"].mean() if len(h2h_away) > 0 else None),
             "h2h_total_matches": total,
         }
 
@@ -685,9 +668,7 @@ class MatchFeatureBuilder:
             "points_diff": _safe_sub(h_pts, a_pts),
         }
 
-    def _get_latest_standing(
-        self, season_code: str, team_id: int
-    ) -> Optional[pd.Series]:
+    def _get_latest_standing(self, season_code: str, team_id: int) -> pd.Series | None:
         """Get the most recent standing for a team in a season."""
         key = (season_code, team_id)
         entries = self._standings_lookup.get(key, [])
@@ -711,12 +692,8 @@ class MatchFeatureBuilder:
         is_derby = frozenset({home_name, away_name}) in DERBIES
 
         # Matchweek estimation (approximate from match count in season)
-        season_matches = self.matches[
-            self.matches["season_code"] == match["season_code"]
-        ]
-        matches_before = season_matches[
-            season_matches["match_date"] <= cutoff
-        ]
+        season_matches = self.matches[self.matches["season_code"] == match["season_code"]]
+        matches_before = season_matches[season_matches["match_date"] <= cutoff]
         # ~10 matches per matchweek in La Liga (20 teams, 10 games per week)
         match_week = max(1, len(matches_before) // 10 + 1)
 
@@ -733,7 +710,7 @@ class MatchFeatureBuilder:
 # ================================================================
 
 
-def _safe_add(a: object, b: object) -> Optional[float]:
+def _safe_add(a: object, b: object) -> float | None:
     """Safe addition handling None/NaN values."""
     if a is None or b is None:
         return None
@@ -747,7 +724,7 @@ def _safe_add(a: object, b: object) -> Optional[float]:
         return None
 
 
-def _safe_sub(a: object, b: object) -> Optional[float]:
+def _safe_sub(a: object, b: object) -> float | None:
     """Safe subtraction handling None/NaN values."""
     if a is None or b is None:
         return None
@@ -761,7 +738,7 @@ def _safe_sub(a: object, b: object) -> Optional[float]:
         return None
 
 
-def _safe_mean(series: pd.Series) -> Optional[float]:
+def _safe_mean(series: pd.Series) -> float | None:
     """Mean of a series, returning None if all NaN."""
     valid = series.dropna()
     if len(valid) == 0:
@@ -799,11 +776,7 @@ def main() -> None:
     settings = get_settings()
 
     output = args.output or str(settings.FEATURE_CACHE_DIR / "features.parquet")
-    windows = (
-        [int(w) for w in args.windows.split(",")]
-        if args.windows
-        else None
-    )
+    windows = [int(w) for w in args.windows.split(",")] if args.windows else None
 
     logger.info("Loading data from database...")
     matches, advanced, standings = load_all_data()
@@ -816,10 +789,21 @@ def main() -> None:
     logger.info(f"Features saved to {output}")
 
     # Print summary
-    feature_cols = [c for c in df.columns if c not in {
-        "match_id", "match_date", "season_code", "home_team", "away_team",
-        "target_result", "target_total_goals", "target_total_cards",
-    }]
+    feature_cols = [
+        c
+        for c in df.columns
+        if c
+        not in {
+            "match_id",
+            "match_date",
+            "season_code",
+            "home_team",
+            "away_team",
+            "target_result",
+            "target_total_goals",
+            "target_total_cards",
+        }
+    ]
     logger.info(f"Summary: {len(df)} matches, {len(feature_cols)} features")
     logger.info(f"Seasons: {sorted(df['season_code'].unique())}")
     logger.info(f"Null percentage: {df[feature_cols].isnull().mean().mean():.1%}")

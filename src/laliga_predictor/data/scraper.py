@@ -7,7 +7,7 @@ and historical results from the FBRef website.
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urljoin
 
 import requests
@@ -33,7 +33,7 @@ class FBRefScraper:
         session: Requests session with retry logic
     """
 
-    def __init__(self, base_url: Optional[str] = None, delay: Optional[int] = None):
+    def __init__(self, base_url: str | None = None, delay: int | None = None):
         """
         Initialize the FBRef scraper.
 
@@ -47,9 +47,7 @@ class FBRefScraper:
         self.session = self._create_session()
         self.last_request_time = 0.0
 
-        logger.info(
-            f"Initialized FBRefScraper with base_url={self.base_url}, delay={self.delay}s"
-        )
+        logger.info(f"Initialized FBRefScraper with base_url={self.base_url}, delay={self.delay}s")
 
     def _create_session(self) -> requests.Session:
         """
@@ -105,7 +103,7 @@ class FBRefScraper:
 
             self.last_request_time = time.time()
 
-    def _fetch_page(self, url: str) -> Optional[BeautifulSoup]:
+    def _fetch_page(self, url: str) -> BeautifulSoup | None:
         """
         Fetch and parse a web page.
 
@@ -134,7 +132,7 @@ class FBRefScraper:
             logger.error(f"Error fetching {url}: {e}")
             raise
 
-    def get_season_matches(self, season: str) -> List[Dict[str, Any]]:
+    def get_season_matches(self, season: str) -> list[dict[str, Any]]:
         """
         Get all matches for a specific LaLiga season.
 
@@ -168,9 +166,7 @@ class FBRefScraper:
         logger.info(f"Found {len(matches)} matches for season {season}")
         return matches
 
-    def _parse_season_matches(
-        self, soup: BeautifulSoup, season: str
-    ) -> List[Dict[str, Any]]:
+    def _parse_season_matches(self, soup: BeautifulSoup, season: str) -> list[dict[str, Any]]:
         """
         Parse match data from season page.
 
@@ -207,7 +203,7 @@ class FBRefScraper:
 
         return matches
 
-    def _parse_match_row(self, row: Tag, season: str) -> Optional[Dict[str, Any]]:
+    def _parse_match_row(self, row: Tag, season: str) -> dict[str, Any] | None:
         """
         Parse a single match row from the table.
 
@@ -261,7 +257,7 @@ class FBRefScraper:
             logger.debug(f"Could not parse match row: {e}")
             return None
 
-    def _safe_extract_text(self, element: Optional[Tag]) -> Optional[str]:
+    def _safe_extract_text(self, element: Tag | None) -> str | None:
         """
         Safely extract text from a BeautifulSoup element.
 
@@ -276,7 +272,7 @@ class FBRefScraper:
         text = element.get_text(strip=True)
         return text if text else None
 
-    def get_team_stats(self, team_url: str) -> Dict[str, Any]:
+    def get_team_stats(self, team_url: str) -> dict[str, Any]:
         """
         Get detailed statistics for a specific team.
 

@@ -47,9 +47,7 @@ class TestSettings:
             DB_PASSWORD="test_pass",
         )
 
-        expected_url = (
-            "postgresql+asyncpg://test_user:test_pass@localhost:5432/test_db"
-        )
+        expected_url = "postgresql+asyncpg://test_user:test_pass@localhost:5432/test_db"
         assert settings.database_url_async == expected_url
 
     def test_log_level_validation(self) -> None:

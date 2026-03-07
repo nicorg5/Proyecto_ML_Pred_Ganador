@@ -24,9 +24,7 @@ from .base import BasePredictor
 logger = logging.getLogger(__name__)
 
 
-def evaluate_classifier(
-    model: BasePredictor, X: pd.DataFrame, y_true: pd.Series
-) -> dict:
+def evaluate_classifier(model: BasePredictor, X: pd.DataFrame, y_true: pd.Series) -> dict:
     """Evaluate a classifier on a dataset.
 
     Returns dict with: accuracy, f1_macro, f1_weighted, log_loss,
@@ -39,6 +37,7 @@ def evaluate_classifier(
 
     # Encode y_true for log_loss
     from sklearn.preprocessing import LabelEncoder
+
     le = LabelEncoder()
     le.fit(classes)
     y_true_enc = le.transform(y_true)
@@ -60,7 +59,7 @@ def evaluate_classifier(
     metrics["confusion_matrix"] = cm.tolist()
 
     # Per-class accuracy
-    for i, cls in enumerate(classes):
+    for _i, cls in enumerate(classes):
         mask = y_true == cls
         if mask.sum() > 0:
             metrics[f"accuracy_{cls}"] = float((y_pred[mask] == cls).mean())
@@ -70,9 +69,7 @@ def evaluate_classifier(
     return metrics
 
 
-def evaluate_binary_classifier(
-    model: BasePredictor, X: pd.DataFrame, y_true: pd.Series
-) -> dict:
+def evaluate_binary_classifier(model: BasePredictor, X: pd.DataFrame, y_true: pd.Series) -> dict:
     """Evaluate a binary classifier (over/under) on a dataset.
 
     Args:
@@ -113,9 +110,7 @@ def evaluate_binary_classifier(
     return metrics
 
 
-def evaluate_regressor(
-    model: BasePredictor, X: pd.DataFrame, y_true: pd.Series
-) -> dict:
+def evaluate_regressor(model: BasePredictor, X: pd.DataFrame, y_true: pd.Series) -> dict:
     """Evaluate a regressor on a dataset.
 
     Returns dict with: rmse, mae, r2, mean_pred, mean_true.
@@ -153,12 +148,16 @@ def print_evaluation_report(results: dict) -> None:
             print(f"\n  Model: {model_name}")
             if "f1_macro" in test:
                 # Multi-class (winner)
-                print(f"    Test  - Accuracy: {test['accuracy']:.3f}, "
-                      f"F1 Macro: {test['f1_macro']:.3f}, "
-                      f"Log Loss: {test.get('log_loss', 'N/A')}")
+                print(
+                    f"    Test  - Accuracy: {test['accuracy']:.3f}, "
+                    f"F1 Macro: {test['f1_macro']:.3f}, "
+                    f"Log Loss: {test.get('log_loss', 'N/A')}"
+                )
                 if val:
-                    print(f"    Val   - Accuracy: {val['accuracy']:.3f}, "
-                          f"F1 Macro: {val['f1_macro']:.3f}")
+                    print(
+                        f"    Val   - Accuracy: {val['accuracy']:.3f}, "
+                        f"F1 Macro: {val['f1_macro']:.3f}"
+                    )
                 # Per-class
                 for cls in ["H", "D", "A"]:
                     acc = test.get(f"accuracy_{cls}")
@@ -166,16 +165,21 @@ def print_evaluation_report(results: dict) -> None:
                         print(f"    Class {cls}: {acc:.3f}")
             elif "auc_roc" in test:
                 # Binary (over/under)
-                print(f"    Test  - Accuracy: {test['accuracy']:.3f}, "
-                      f"F1: {test['f1']:.3f}, AUC: {test['auc_roc']:.3f}")
+                print(
+                    f"    Test  - Accuracy: {test['accuracy']:.3f}, "
+                    f"F1: {test['f1']:.3f}, AUC: {test['auc_roc']:.3f}"
+                )
                 if val:
-                    print(f"    Val   - Accuracy: {val['accuracy']:.3f}, "
-                          f"F1: {val['f1']:.3f}, AUC: {val['auc_roc']:.3f}")
+                    print(
+                        f"    Val   - Accuracy: {val['accuracy']:.3f}, "
+                        f"F1: {val['f1']:.3f}, AUC: {val['auc_roc']:.3f}"
+                    )
             elif "rmse" in test:
-                print(f"    Test  - RMSE: {test['rmse']:.3f}, "
-                      f"MAE: {test['mae']:.3f}, R2: {test['r2']:.3f}")
+                print(
+                    f"    Test  - RMSE: {test['rmse']:.3f}, "
+                    f"MAE: {test['mae']:.3f}, R2: {test['r2']:.3f}"
+                )
                 if val:
-                    print(f"    Val   - RMSE: {val['rmse']:.3f}, "
-                          f"MAE: {val['mae']:.3f}")
+                    print(f"    Val   - RMSE: {val['rmse']:.3f}, " f"MAE: {val['mae']:.3f}")
                 if "over_2_5_accuracy" in test:
                     print(f"    Over 2.5 Accuracy: {test['over_2_5_accuracy']:.3f}")
