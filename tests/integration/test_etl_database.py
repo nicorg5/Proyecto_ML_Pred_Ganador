@@ -12,10 +12,6 @@ Requirements:
 - Tests will be skipped if PostgreSQL is not available
 """
 
-import os
-from datetime import datetime
-
-import pandas as pd
 import pytest
 
 
