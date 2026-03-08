@@ -1,4 +1,4 @@
-.PHONY: help install install-dev sync test test-cov lint format pre-commit scrape train db-init db-migrate db-reset clean docker-up docker-down sd-create-db sd-init sd-init-drop sd-etl sd-etl-mh sd-etl-espn sd-etl-fbref-schedule sd-etl-fbref-stats sd-etl-fbref-stats-type sd-etl-players sd-etl-shots sd-etl-standings sd-etl-season sd-validate sd-status ml-features ml-select-features ml-tune ml-train ml-train-winner ml-train-goals ml-train-cards ml-predict ml-predict-jornada ml-update ml-pipeline
+.PHONY: help install install-dev sync test test-cov test-unit test-integration test-integration-db test-integration-ml lint format pre-commit scrape train db-init db-migrate db-reset clean docker-up docker-down sd-create-db sd-init sd-init-drop sd-etl sd-etl-mh sd-etl-espn sd-etl-fbref-schedule sd-etl-fbref-stats sd-etl-fbref-stats-type sd-etl-players sd-etl-shots sd-etl-standings sd-etl-season sd-validate sd-status ml-features ml-select-features ml-tune ml-train ml-train-winner ml-train-goals ml-train-cards ml-predict ml-predict-jornada ml-update ml-pipeline
 
 # Default target
 .DEFAULT_GOAL := help
@@ -49,9 +49,18 @@ test-unit: ## Run only unit tests
 	@echo "$(BLUE)Running unit tests...$(NC)"
 	uv run pytest tests/unit/ -v
 
-test-integration: ## Run only integration tests
+test-integration: ## Run only integration tests (includes DB tests if PostgreSQL is running)
 	@echo "$(BLUE)Running integration tests...$(NC)"
 	uv run pytest tests/integration/ -v
+
+test-integration-db: ## Run integration tests that require PostgreSQL (requires Docker running)
+	@echo "$(BLUE)Running database integration tests...$(NC)"
+	@echo "$(YELLOW)Ensure PostgreSQL is running: make docker-up$(NC)"
+	uv run pytest tests/integration/test_etl_database.py -v -m integration
+
+test-integration-ml: ## Run ML pipeline integration tests (no database required)
+	@echo "$(BLUE)Running ML pipeline integration tests...$(NC)"
+	uv run pytest tests/integration/test_ml_pipeline.py -v
 
 # ===================================
 # CODE QUALITY
