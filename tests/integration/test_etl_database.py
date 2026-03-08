@@ -139,7 +139,7 @@ class TestDatabaseOperations:
         assert result is not None
         season_code, season_name, start_year, end_year = result
         assert len(season_code) == 4  # Format: '1718'
-        assert '-' in season_name  # Format: '2017-2018'
+        assert "-" in season_name  # Format: '2017-2018'
         assert start_year < end_year
         assert end_year - start_year == 1
 
@@ -213,7 +213,9 @@ class TestETLLog:
             assert col in columns, f"Expected column '{col}' not found in etl_log table"
 
         # Verify we have at least 5 columns
-        assert len(columns) >= 5, f"ETL log table should have at least 5 columns, found {len(columns)}"
+        assert (
+            len(columns) >= 5
+        ), f"ETL log table should have at least 5 columns, found {len(columns)}"
 
         cur.close()
 
