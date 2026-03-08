@@ -270,3 +270,96 @@ def synthetic_3season_advanced(synthetic_3season_matches: pd.DataFrame) -> pd.Da
 @pytest.fixture(scope="session")
 def synthetic_3season_standings(synthetic_3season_matches: pd.DataFrame) -> pd.DataFrame:
     return _make_standings(synthetic_3season_matches)
+
+
+# ================================================================
+# PostgreSQL database fixtures for ETL integration tests
+# ================================================================
+
+
+@pytest.fixture(scope="module")
+def test_db_connection() -> Generator:
+    """
+    Provide a PostgreSQL connection for ETL integration tests.
+
+    This fixture:
+    - Connects to the test database using environment variables
+    - Initializes the schema if needed
+    - Cleans up test data after each module
+    - Skips tests if PostgreSQL is not available
+
+    Environment variables required:
+    - POSTGRES_HOST (default: localhost)
+    - POSTGRES_PORT (default: 5432)
+    - POSTGRES_DB (default: laliga_soccerdata_test)
+    - POSTGRES_USER (default: postgres)
+    - POSTGRES_PASSWORD (default: postgres)
+    """
+    import psycopg2
+    from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+
+    # Get connection parameters from environment
+    db_config = {
+        "host": os.getenv("POSTGRES_HOST", "localhost"),
+        "port": int(os.getenv("POSTGRES_PORT", "5432")),
+        "database": os.getenv("POSTGRES_DB", "laliga_soccerdata_test"),
+        "user": os.getenv("POSTGRES_USER", "postgres"),
+        "password": os.getenv("POSTGRES_PASSWORD", "postgres"),
+    }
+
+    # Try to connect to PostgreSQL
+    try:
+        conn = psycopg2.connect(**db_config)
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    except psycopg2.OperationalError as e:
+        pytest.skip(f"PostgreSQL not available: {e}")
+        return
+
+    # Yield connection to tests
+    yield conn
+
+    # Cleanup: truncate all tables after module tests complete
+    try:
+        cur = conn.cursor()
+        # Get all tables in public schema
+        cur.execute(
+            """
+            SELECT tablename FROM pg_tables
+            WHERE schemaname = 'public'
+            AND tablename NOT LIKE 'pg_%'
+        """
+        )
+        tables = cur.fetchall()
+
+        # Truncate each table
+        for (table_name,) in tables:
+            if table_name != "etl_log":  # Keep ETL log for debugging
+                cur.execute(f'TRUNCATE TABLE "{table_name}" CASCADE')
+
+        cur.close()
+    except Exception as e:
+        print(f"Warning: Could not clean up test data: {e}")
+    finally:
+        conn.close()
+
+
+@pytest.fixture(scope="module")
+def test_db_with_schema(test_db_connection) -> Generator:
+    """
+    Provide a PostgreSQL connection with schema initialized.
+
+    This fixture extends test_db_connection by ensuring the
+    soccerdata schema (tables, views, etc.) is created.
+    """
+    from src.laliga_predictor.data.sd_db_init import init_soccerdata_database
+
+    conn = test_db_connection
+
+    # Initialize schema (idempotent - safe to call multiple times)
+    try:
+        init_soccerdata_database()
+    except Exception as e:
+        pytest.skip(f"Could not initialize test schema: {e}")
+        return
+
+    yield conn

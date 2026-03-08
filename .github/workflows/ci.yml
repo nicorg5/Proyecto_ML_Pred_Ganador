@@ -87,6 +87,16 @@ jobs:
         run: |
           uv run pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=term
 
+      - name: Initialize test database schema
+        env:
+          SD_DB_HOST: localhost
+          SD_DB_PORT: 5432
+          SD_DB_NAME: laliga_soccerdata_test
+          SD_DB_USER: postgres
+          SD_DB_PASSWORD: postgres
+        run: |
+          uv run python -m src.laliga_predictor.data.sd_db_init
+
       - name: Run integration tests
         env:
           POSTGRES_HOST: localhost
@@ -94,6 +104,11 @@ jobs:
           POSTGRES_DB: laliga_soccerdata_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+          SD_DB_HOST: localhost
+          SD_DB_PORT: 5432
+          SD_DB_NAME: laliga_soccerdata_test
+          SD_DB_USER: postgres
+          SD_DB_PASSWORD: postgres
         run: |
           uv run pytest tests/integration/ -v --cov=src --cov-append --cov-report=xml --cov-report=term-missing
 
