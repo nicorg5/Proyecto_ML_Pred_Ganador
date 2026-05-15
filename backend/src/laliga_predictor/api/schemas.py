@@ -5,7 +5,6 @@ Defines request/response models for type validation and documentation.
 """
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 

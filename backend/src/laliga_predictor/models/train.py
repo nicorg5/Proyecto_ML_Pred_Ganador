@@ -233,8 +233,8 @@ def train_model(
         model = CalibratedPredictor(model, n_classes=n_classes)
 
     # Start MLflow run if enabled
-    run_context = mlflow.start_run(run_name=f"{target}_{model_name}") if use_mlflow else None
     if use_mlflow:
+        mlflow.start_run(run_name=f"{target}_{model_name}")
         mlflow.log_param("target", target)
         mlflow.log_param("model_type", model_name)
         mlflow.log_param("train_seasons", ",".join(train_s))

@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 from src.laliga_predictor.api.main import app
 from src.laliga_predictor.api.schemas import (
     HealthResponse,
-    PredictionRequest,
     PredictionResponse,
     TeamsResponse,
 )
@@ -214,12 +213,12 @@ class TestPredictionEndpoint:
             data = response.json()
 
             # Check goals
-            for line, probs in data["goals"].items():
+            for _line, probs in data["goals"].items():
                 total = probs["over"] + probs["under"]
                 assert 0.99 <= total <= 1.01
 
             # Check cards
-            for line, probs in data["cards"].items():
+            for _line, probs in data["cards"].items():
                 total = probs["over"] + probs["under"]
                 assert 0.99 <= total <= 1.01
 

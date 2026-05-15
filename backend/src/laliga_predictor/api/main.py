@@ -5,7 +5,6 @@ Provides REST API for match predictions with Swagger documentation.
 """
 
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -216,7 +215,9 @@ async def predict_match(request: PredictionRequest):
 
     except Exception as e:
         logger.error(f"Prediction error: {e}")
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Prediction failed: {str(e)}"
+        ) from e
 
 
 if __name__ == "__main__":

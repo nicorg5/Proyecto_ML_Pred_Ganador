@@ -133,11 +133,12 @@ def validate_features(features_path: str = "data/processed/features.parquet") ->
         return False
 
     # Success
-    print(f"✅ Validation PASSED")
+    print("✅ Validation PASSED")
     print(f"   - {len(df)} rows")
     print(f"   - {len(df.columns)} columns")
-    print(f"   - {len(df['season_code'].unique())} seasons" if "season_code" in df.columns else "")
-    print(f"   - All critical checks passed")
+    if "season_code" in df.columns:
+        print(f"   - {len(df['season_code'].unique())} seasons")
+    print("   - All critical checks passed")
     return True
 
 
