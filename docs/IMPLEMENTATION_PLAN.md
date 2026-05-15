@@ -95,33 +95,65 @@
 
 ---
 
-### **FASE 5.1: FastAPI** ⏱️ 2-3 días
-- [ ] Crear módulo `api/` con FastAPI
-- [ ] Endpoints: `/predict`, `/health`, `/teams`, `/docs` (Swagger)
-- [ ] Pydantic schemas para request/response
-- [ ] Cargar modelos al startup
-- [ ] Tests unitarios de API
-- [ ] ✅ **CHECKPOINT 4**: API funcionando localmente, `/docs` accesible
+### **FASE 5.1: FastAPI** ✅ COMPLETADA
+- [x] Crear módulo `api/` con FastAPI
+- [x] Endpoints: `/predict`, `/health`, `/teams`, `/docs` (Swagger)
+- [x] Pydantic schemas para request/response
+- [x] Cargar modelos al startup
+- [x] Tests unitarios de API (32 nuevos tests)
+- [x] ✅ **CHECKPOINT 4**: API funcionando localmente, `/docs` accesible
 
-**Archivos a crear/modificar:**
-- `src/laliga_predictor/api/main.py` — FastAPI app
-- `src/laliga_predictor/api/schemas.py` — Pydantic models
-- `tests/unit/test_api.py` — tests de endpoints
-- `Makefile` — target `api-run` (uvicorn)
+**Archivos creados:**
+- ✅ `src/laliga_predictor/api/__init__.py`
+- ✅ `src/laliga_predictor/api/main.py` — FastAPI app con 4 endpoints
+- ✅ `src/laliga_predictor/api/schemas.py` — Pydantic models (7 modelos)
+- ✅ `tests/unit/test_api.py` — 32 tests de endpoints
+- ✅ `Makefile` — targets `api-run`, `api-check` añadidos
+
+**Endpoints implementados:**
+- `GET /` — API info
+- `GET /health` — Health check con estado de modelos
+- `GET /teams` — Lista de 20 equipos
+- `POST /predict` — Predicción de partido (winner + goals O/U + cards O/U)
+- `GET /docs` — Swagger UI auto-generada
+
+**CORS configurado** para acceso desde frontend
+
+**Tests**: 125 tests pasando (32 nuevos para API)
+
+**Commit**: feat: Implement FastAPI for LaLiga Predictor (1b2e599)
 
 ---
 
-### **FASE 5.2: Dockerfile** ⏱️ 1-2 días
-- [ ] Crear Dockerfile para backend
-- [ ] Testar build local
-- [ ] Testar run con `docker run`
-- [ ] Actualizar docker-compose.yml (agregar backend service)
-- [ ] ✅ **CHECKPOINT 5**: Backend dockerizado, funciona en contenedor
+### **FASE 5.2: Dockerfile** ✅ COMPLETADA
+- [x] Crear Dockerfile para backend
+- [x] Testar build local
+- [x] Testar run con `docker compose up`
+- [x] Actualizar docker-compose.yml (agregar backend service)
+- [x] ✅ **CHECKPOINT 5**: Backend dockerizado, funciona en contenedor
 
-**Archivos a crear/modificar:**
-- `Dockerfile` — en raíz
-- `docker-compose.yml` — actualizado con backend service
-- `.dockerignore` — excluir archivos innecesarios
+**Archivos creados/modificados:**
+- ✅ `Dockerfile` — multi-stage build con UV, Python 3.11-slim
+- ✅ `docker-compose.yml` — actualizado con backend service, network bridge
+- ✅ `.dockerignore` — excluir archivos innecesarios (~25 entries)
+
+**Docker Build Details:**
+- Base image: `python:3.11-slim`
+- Multi-stage build: builder (dependencies) + production (runtime)
+- Package manager: UV (sin dev dependencies en prod)
+- Healthcheck configurado: `curl http://localhost:8000/health` cada 30s
+- CORS habilitado para conexión desde frontend
+- Volúmenes montados: `/app/models`, `/app/data`
+- Network: bridge compartida (postgres, pgadmin, backend)
+
+**Endpoints validados:**
+- ✅ GET / → API info
+- ✅ GET /health → Status + models_loaded dict
+- ✅ GET /teams → Lista de 20 equipos
+- ✅ GET /docs → Swagger UI funcional
+- ✅ POST /predict → 503 cuando modelos no entrenados (comportamiento correcto)
+
+**Commit**: feat: Add Docker containerization (Dockerfile + docker-compose backend service)
 
 ---
 
@@ -194,20 +226,19 @@ SEMANA 1 (8-14 mayo):
   Jueves-Viernes:  Fase 4 (Automatización) ✅ COMPLETADA
   
 SEMANA 2 (15-21 mayo):  ← ESTAMOS AQUÍ
-  Jueves 15 mayo:  Fase 5.1 (FastAPI) → INICIANDO AHORA
-  Viernes:         Fase 5.1 + Fase 5.2 (Dockerfile)
+  Jueves 15 mayo:  Fase 5.1 (FastAPI) ✅ COMPLETADA
+  Viernes 15 mayo: Fase 5.2 (Docker) ✅ COMPLETADA
   
 SEMANA 2/3:
-  Lunes-Martes:    Fase 5.2 (Dockerfile)
-  Miércoles:       Fase 5.3 (Restructuración)
-  Jueves-Viernes:  Fase 5.4 (React Frontend)
+  Próximo:         Fase 5.3 (Restructuración monorepositorio)
+  Después:         Fase 5.4 (React Frontend)
   
 SEMANA 3/4:
-  Lunes-Martes:    Fase 5.5 (Deploy Render)
-  Miércoles+:      Documentación final + bugfixes
+  Siguiente:       Fase 5.5 (Deploy Render)
+  Final:           Documentación final + bugfixes
 ```
 
-**PROGRESO ACTUAL**: 3/5 fases completadas (60% de MLOps core)
+**PROGRESO ACTUAL**: 5/10 sub-fases completadas (50% de implementación total)
 
 ---
 

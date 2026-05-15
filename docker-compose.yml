@@ -18,6 +18,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - laliga_network
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -32,7 +34,39 @@ services:
       - postgres
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - laliga_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laliga_api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://laliga_user:laliga_password_dev@postgres:5432/laliga_predictor
+      SD_DATABASE_URL: postgresql://laliga_user:laliga_password_dev@postgres:5432/laliga_soccerdata
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - laliga_network
 
 volumes:
   postgres_data:
   pgadmin_data:
+
+networks:
+  laliga_network:
+    driver: bridge
