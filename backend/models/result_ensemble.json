@@ -1,6 +1,11 @@
 {
-  "name": "Ensemble",
+  "name": "Calibrated_Ensemble",
   "model_type": "classifier",
-  "feature_count": 119,
-  "saved_at": "2026-02-15T20:21:13.633238"
+  "feature_count": 118,
+  "saved_at": "2026-05-15T17:39:04.537154",
+  "classification_thresholds": [
+    1.0,
+    1.5,
+    1.0
+  ]
 }

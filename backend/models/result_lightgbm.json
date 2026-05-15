@@ -1,11 +1,11 @@
 {
-  "name": "Calibrated_RandomForest",
+  "name": "Calibrated_LightGBM",
   "model_type": "classifier",
   "feature_count": 118,
-  "saved_at": "2026-05-15T17:38:45.487240",
+  "saved_at": "2026-05-15T17:38:57.706580",
   "classification_thresholds": [
     1.0,
-    1.5,
+    1.6,
     1.0
   ]
 }

@@ -322,13 +322,11 @@ def test_db_connection() -> Generator:
     try:
         cur = conn.cursor()
         # Get all tables in public schema
-        cur.execute(
-            """
+        cur.execute("""
             SELECT tablename FROM pg_tables
             WHERE schemaname = 'public'
             AND tablename NOT LIKE 'pg_%'
-        """
-        )
+        """)
         tables = cur.fetchall()
 
         # Truncate each table

@@ -1,9 +1,9 @@
 {
   "name": "Baseline_O/U_cards_3.5",
   "model_type": "classifier",
-  "feature_count": 119,
-  "saved_at": "2026-02-15T20:21:15.713758",
+  "feature_count": 118,
+  "saved_at": "2026-05-15T17:39:40.255069",
   "line": 3.5,
   "stat_type": "cards",
-  "train_over_rate": 0.734188412206988
+  "train_over_rate": 0.7281332828474063
 }

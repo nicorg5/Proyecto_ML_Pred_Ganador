@@ -86,17 +86,13 @@ def validate_features(features_path: str = "data/processed/features.parquet") ->
         max_goals = df["target_total_goals"].max()
         min_goals = df["target_total_goals"].min()
         if min_goals < 0 or max_goals > 15:
-            errors.append(
-                f"target_total_goals has unrealistic range: [{min_goals}, {max_goals}]"
-            )
+            errors.append(f"target_total_goals has unrealistic range: [{min_goals}, {max_goals}]")
 
     if "target_total_cards" in df.columns:
         max_cards = df["target_total_cards"].max()
         min_cards = df["target_total_cards"].min()
         if min_cards < 0 or max_cards > 20:
-            errors.append(
-                f"target_total_cards has unrealistic range: [{min_cards}, {max_cards}]"
-            )
+            errors.append(f"target_total_cards has unrealistic range: [{min_cards}, {max_cards}]")
 
     # Validation 7: Win/rate columns in [0, 1]
     rate_cols = [c for c in df.columns if "win_rate" in c or "draw_rate" in c]

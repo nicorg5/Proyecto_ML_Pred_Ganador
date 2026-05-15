@@ -215,9 +215,7 @@ async def predict_match(request: PredictionRequest):
 
     except Exception as e:
         logger.error(f"Prediction error: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Prediction failed: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}") from e
 
 
 if __name__ == "__main__":

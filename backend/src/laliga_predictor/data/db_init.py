@@ -58,14 +58,12 @@ def init_database() -> None:
             logger.info("Schema executed successfully")
 
             # Verify tables were created
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 'public'
                 ORDER BY table_name;
-            """
-            )
+            """)
             tables = cursor.fetchall()
 
             logger.info(f"Created {len(tables)} tables:")
@@ -102,14 +100,12 @@ def drop_all_tables() -> None:
 
         with conn.cursor() as cursor:
             # Drop all tables
-            cursor.execute(
-                """
+            cursor.execute("""
                 DROP TABLE IF EXISTS match_stats CASCADE;
                 DROP TABLE IF EXISTS matches CASCADE;
                 DROP TABLE IF EXISTS teams CASCADE;
                 DROP TABLE IF EXISTS seasons CASCADE;
-            """
-            )
+            """)
             conn.commit()
             logger.info("All tables dropped successfully")
 
@@ -139,28 +135,24 @@ def verify_database() -> None:
             logger.info("\n=== Database Structure ===")
 
             # Tables
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
                 ORDER BY table_name;
-            """
-            )
+            """)
             tables = cursor.fetchall()
             logger.info(f"\nTables ({len(tables)}):")
             for table in tables:
                 logger.info(f"  - {table[0]}")
 
             # Views
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 'public' AND table_type = 'VIEW'
                 ORDER BY table_name;
-            """
-            )
+            """)
             views = cursor.fetchall()
             logger.info(f"\nViews ({len(views)}):")
             for view in views:

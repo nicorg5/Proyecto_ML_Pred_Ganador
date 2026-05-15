@@ -90,16 +90,14 @@ class SoccerdataValidator:
 
         with self.conn.cursor() as cur:
             # Matches per season
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT s.season_name, s.season_code, COUNT(m.id) as total,
                        COUNT(m.home_score) as with_scores
                 FROM seasons s
                 LEFT JOIN matches m ON s.id = m.season_id
                 GROUP BY s.id, s.season_name, s.season_code
                 ORDER BY s.start_year
-            """
-            )
+            """)
             season_counts = cur.fetchall()
 
             for name, code, total, with_scores in season_counts:
@@ -118,14 +116,12 @@ class SoccerdataValidator:
                     )
 
             # Missing basic stats
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT COUNT(*) FROM matches
                 WHERE home_score IS NOT NULL
                   AND (home_shots IS NULL OR home_corners IS NULL
                        OR home_fouls IS NULL)
-            """
-            )
+            """)
             missing_stats = cur.fetchone()[0]
             completeness["missing_basic_stats"] = missing_stats
             if missing_stats > 0:
@@ -134,20 +130,17 @@ class SoccerdataValidator:
                 )
 
             # Missing xG
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT COUNT(*) FROM matches
                 WHERE home_score IS NOT NULL AND home_xg IS NULL
-            """
-            )
+            """)
             missing_xg = cur.fetchone()[0]
             completeness["missing_xg"] = missing_xg
             if missing_xg > 0:
                 self.warnings.append(f"WARNING: {missing_xg} completed matches without xG data")
 
             # Source coverage
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT
                     COUNT(*) as total,
                     COUNT(*) FILTER (WHERE source_match_history) as from_mh,
@@ -155,8 +148,7 @@ class SoccerdataValidator:
                     COUNT(*) FILTER (WHERE source_espn) as from_espn,
                     COUNT(*) FILTER (WHERE source_match_history AND source_espn) as mh_and_espn
                 FROM matches
-            """
-            )
+            """)
             sources = cur.fetchone()
             completeness["sources"] = {
                 "total": sources[0],
@@ -174,8 +166,7 @@ class SoccerdataValidator:
 
         with self.conn.cursor() as cur:
             # Result consistency
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT COUNT(*) FROM matches
                 WHERE home_score IS NOT NULL AND away_score IS NOT NULL
                   AND result IS NOT NULL
@@ -184,8 +175,7 @@ class SoccerdataValidator:
                     OR (home_score < away_score AND result != 'A')
                     OR (home_score = away_score AND result != 'D')
                   )
-            """
-            )
+            """)
             inconsistent_results = cur.fetchone()[0]
             consistency["inconsistent_results"] = inconsistent_results
             if inconsistent_results > 0:
@@ -194,28 +184,24 @@ class SoccerdataValidator:
                 )
 
             # Duplicate matches
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT COUNT(*) FROM (
                     SELECT season_id, match_date, home_team_id, away_team_id
                     FROM matches
                     GROUP BY season_id, match_date, home_team_id, away_team_id
                     HAVING COUNT(*) > 1
                 ) dupes
-            """
-            )
+            """)
             duplicates = cur.fetchone()[0]
             consistency["duplicates"] = duplicates
             if duplicates > 0:
                 self.issues.append(f"CRITICAL: {duplicates} duplicate matches found")
 
             # Standings consistency (points = W*3 + D)
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT COUNT(*) FROM standings
                 WHERE points != (wins * 3 + draws)
-            """
-            )
+            """)
             bad_points = cur.fetchone()[0]
             consistency["bad_standings_points"] = bad_points
             if bad_points > 0:
@@ -275,42 +261,36 @@ class SoccerdataValidator:
 
         with self.conn.cursor() as cur:
             # Unrealistic scores
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT COUNT(*) FROM matches
                 WHERE (home_score > 10 OR away_score > 10)
                   AND home_score IS NOT NULL
-            """
-            )
+            """)
             big_scores = cur.fetchone()[0]
             quality["unrealistic_scores"] = big_scores
             if big_scores > 0:
                 self.warnings.append(f"WARNING: {big_scores} matches with scores > 10 goals")
 
             # Negative stats
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT COUNT(*) FROM matches
                 WHERE home_shots < 0 OR away_shots < 0
                    OR home_corners < 0 OR away_corners < 0
                    OR home_fouls < 0 OR away_fouls < 0
-            """
-            )
+            """)
             negative = cur.fetchone()[0]
             quality["negative_stats"] = negative
             if negative > 0:
                 self.issues.append(f"CRITICAL: {negative} matches with negative stats")
 
             # Shots on target > total shots
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT COUNT(*) FROM matches
                 WHERE (home_shots_on_target > home_shots
                        OR away_shots_on_target > away_shots)
                   AND home_shots IS NOT NULL
                   AND home_shots_on_target IS NOT NULL
-            """
-            )
+            """)
             bad_shots = cur.fetchone()[0]
             quality["shots_on_target_exceeds_total"] = bad_shots
             if bad_shots > 0:
@@ -319,16 +299,14 @@ class SoccerdataValidator:
                 )
 
             # Basic stats
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT
                     ROUND(AVG(home_score + away_score), 2) as avg_goals,
                     MAX(home_score + away_score) as max_goals,
                     ROUND(AVG(home_shots + away_shots), 1) as avg_shots
                 FROM matches
                 WHERE home_score IS NOT NULL AND home_shots IS NOT NULL
-            """
-            )
+            """)
             stats = cur.fetchone()
             if stats and stats[0]:
                 quality["avg_goals_per_match"] = float(stats[0])

@@ -24,15 +24,13 @@ class TestDatabaseSchema:
         cur = conn.cursor()
 
         # Check that all expected tables exist
-        cur.execute(
-            """
+        cur.execute("""
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = 'public'
             AND table_type = 'BASE TABLE'
             ORDER BY table_name
-        """
-        )
+        """)
         tables = [row[0] for row in cur.fetchall()]
 
         # Expected tables from schema_soccerdata.sql
@@ -58,26 +56,22 @@ class TestDatabaseSchema:
         cur = conn.cursor()
 
         # Check primary key on matches table
-        cur.execute(
-            """
+        cur.execute("""
             SELECT constraint_name
             FROM information_schema.table_constraints
             WHERE table_name = 'matches'
             AND constraint_type = 'PRIMARY KEY'
-        """
-        )
+        """)
         pk = cur.fetchone()
         assert pk is not None, "Primary key not found on 'matches' table"
 
         # Check primary key on teams table
-        cur.execute(
-            """
+        cur.execute("""
             SELECT constraint_name
             FROM information_schema.table_constraints
             WHERE table_name = 'teams'
             AND constraint_type = 'PRIMARY KEY'
-        """
-        )
+        """)
         pk = cur.fetchone()
         assert pk is not None, "Primary key not found on 'teams' table"
 
@@ -151,14 +145,12 @@ class TestStandingsTable:
         cur = conn.cursor()
 
         # Check that standings table has expected columns
-        cur.execute(
-            """
+        cur.execute("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'standings'
             ORDER BY ordinal_position
-        """
-        )
+        """)
         columns = [row[0] for row in cur.fetchall()]
 
         expected_columns = {
@@ -192,14 +184,12 @@ class TestETLLog:
         cur = conn.cursor()
 
         # Check ETL log table exists
-        cur.execute(
-            """
+        cur.execute("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'etl_log'
             ORDER BY ordinal_position
-        """
-        )
+        """)
         columns = [row[0] for row in cur.fetchall()]
 
         # Just verify critical columns exist (schema may vary)
