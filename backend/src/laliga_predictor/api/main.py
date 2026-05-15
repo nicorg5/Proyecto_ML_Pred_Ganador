@@ -72,7 +72,7 @@ def _load_models():
 
         # Load goals O/U models
         for line in ["1.5", "2.5", "3.5"]:
-            model_file = model_path / f"goals_over_{line.replace('.', '_')}_xgboost.joblib"
+            model_file = model_path / f"goals_over_{line}_xgboost.joblib"
             if model_file.exists():
                 _models_cache[f"goals_{line}"] = joblib.load(model_file)
                 models_loaded["goals_ou"] += 1
@@ -82,7 +82,7 @@ def _load_models():
 
         # Load cards O/U models
         for line in ["3.5", "4.5", "5.5"]:
-            model_file = model_path / f"cards_over_{line.replace('.', '_')}_xgboost.joblib"
+            model_file = model_path / f"cards_over_{line}_xgboost.joblib"
             if model_file.exists():
                 _models_cache[f"cards_{line}"] = joblib.load(model_file)
                 models_loaded["cards_ou"] += 1
@@ -132,28 +132,28 @@ async def health():
 
 @app.get("/teams", response_model=TeamsResponse, tags=["Info"])
 async def get_teams():
-    """Get list of available teams."""
+    """Get list of available teams for LaLiga 2025/26 season."""
     teams = [
-        "Real Madrid",
-        "Barcelona",
-        "Atlético Madrid",
-        "Valencia",
-        "Sevilla",
-        "Real Sociedad",
-        "Real Betis",
-        "Villarreal",
-        "Getafe",
-        "Osasuna",
-        "Celta Vigo",
-        "Valladolid",
-        "Rayo Vallecano",
-        "Mallorca",
-        "Almería",
-        "Las Palmas",
         "Alavés",
+        "Athletic Club",
+        "Atlético Madrid",
+        "Barcelona",
+        "Real Betis",
+        "Celta Vigo",
+        "Elche CF",
+        "Espanyol",
+        "Getafe",
         "Girona",
-        "Cádiz",
-        "Leganes",
+        "Levante UD",
+        "Mallorca",
+        "Osasuna",
+        "Rayo Vallecano",
+        "Real Madrid",
+        "Real Oviedo",
+        "Real Sociedad",
+        "Sevilla",
+        "Valencia",
+        "Villarreal",
     ]
     return TeamsResponse(teams=sorted(teams), count=len(teams))
 
