@@ -1,52 +1,44 @@
-# ====== STAGE 1: Build frontend ======
-FROM node:20-alpine AS frontend-builder
+# Backend-only Dockerfile (dev local / deploy separado)
+# Para deploy unificado (Render Web Service), usa el Dockerfile en la raíz del repo.
+#
+# Build context: ./backend
+# Uso local: docker build -f backend/Dockerfile -t laliga-backend ./backend
 
-WORKDIR /app/frontend
-
-# Copy and install dependencies
-COPY frontend/package*.json ./
-RUN npm ci
-
-# Copy frontend source
-COPY frontend/src ./src
-COPY frontend/index.html ./
-COPY frontend/vite.config.js ./
-COPY frontend/.eslintrc.json* ./
-
-# Build frontend
-RUN npm run build
-
-
-# ====== STAGE 2: Build Python backend ======
-FROM python:3.11-slim
+# Build stage
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    postgresql-client \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
 
 # Install UV
 RUN pip install --no-cache-dir uv
 
-# Copy backend dependencies
-COPY backend/pyproject.toml backend/uv.lock* ./
+# Copy dependency files
+COPY pyproject.toml uv.lock* ./
 
 # Create virtual environment and install dependencies
 RUN uv venv --python 3.11 && \
     . .venv/bin/activate && \
     uv pip install --no-cache -r pyproject.toml
 
-# Copy backend application code
-COPY backend/src ./src
-COPY backend/models ./models
-COPY backend/data ./data
 
-# Copy frontend build from stage 1
-COPY --from=frontend-builder /app/frontend/dist ./src/laliga_predictor/static
+# Production stage
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install runtime essentials
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy application code
+COPY src/ ./src/
+COPY models/ ./models/
+COPY data/ ./data/
 
 # Set environment variables
 ENV PATH="/app/.venv/bin:$PATH" \
@@ -54,7 +46,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Expose port
