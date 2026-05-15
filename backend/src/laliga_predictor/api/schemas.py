@@ -64,7 +64,7 @@ class HealthResponse(BaseModel):
     """Health check response."""
 
     status: str = Field(..., example="healthy")
-    models_loaded: dict[str, bool] = Field(
+    models_loaded: dict[str, int | bool] = Field(
         ...,
         example={
             "winner": True,
