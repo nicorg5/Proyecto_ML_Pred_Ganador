@@ -1,0 +1,131 @@
+name: Weekly Model Retraining
+
+on:
+  schedule:
+    # Martes 4 AM UTC (después de jornada de La Liga típicamente)
+    - cron: "0 4 * * 2"
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  retrain:
+    name: Retrain ML Models
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: laliga_soccerdata
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Initialize database schema
+        env:
+          SD_DB_HOST: localhost
+          SD_DB_PORT: 5432
+          SD_DB_NAME: laliga_soccerdata
+          SD_DB_USER: postgres
+          SD_DB_PASSWORD: postgres
+        run: |
+          uv run python -m src.laliga_predictor.data.sd_db_init
+
+      - name: Update data (current season)
+        env:
+          SD_DB_HOST: localhost
+          SD_DB_PORT: 5432
+          SD_DB_NAME: laliga_soccerdata
+          SD_DB_USER: postgres
+          SD_DB_PASSWORD: postgres
+        run: |
+          make ml-update SEASON=2526
+
+      - name: Build features
+        run: |
+          make ml-features
+
+      - name: Validate features
+        run: |
+          make ml-validate-features
+
+      - name: Train models
+        run: |
+          make ml-train
+
+      - name: Upload trained models to artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trained-models-${{ github.run_number }}
+          path: |
+            models/*.joblib
+            models/*.json
+            models/training_results.json
+          retention-days: 30
+
+      - name: Upload MLflow data to artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mlflow-data-${{ github.run_number }}
+          path: |
+            mlflow.db
+            mlruns/
+          retention-days: 30
+
+      - name: Create GitHub Release with models
+        if: success()
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Weekly Retrain - Week ${{ github.run_number }}"
+          tag_name: "weekly-${{ github.run_number }}"
+          body: |
+            ## Weekly Model Retraining
+
+            **Run #**: ${{ github.run_number }}
+            **Date**: ${{ github.event.head_commit.timestamp || github.event.schedule }}
+            **Status**: ✅ Success
+
+            Models trained and ready for deployment.
+            See artifacts for trained model files.
+          draft: false
+          prerelease: false
+          files: |
+            models/*.joblib
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "✅ Weekly retraining completed successfully!"
+          echo "Models: Available in artifacts and GitHub Releases"
+          echo "MLflow: See mlflow-data artifact"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Weekly retraining FAILED!"
+          echo "Check logs above for details"
+          exit 1
