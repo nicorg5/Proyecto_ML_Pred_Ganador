@@ -12,7 +12,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/schemas:/docker-entrypoint-initdb.d
+      - ./backend/database/schemas:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U laliga_user -d laliga_predictor"]
       interval: 10s
@@ -39,8 +39,8 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: ./Dockerfile
     container_name: laliga_api
     restart: unless-stopped
     environment:
@@ -53,8 +53,8 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./models:/app/models
-      - ./data:/app/data
+      - ./backend/models:/app/models
+      - ./backend/data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

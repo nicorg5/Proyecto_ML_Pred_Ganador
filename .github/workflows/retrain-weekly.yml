@@ -41,7 +41,7 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: cd backend && uv sync --all-extras
 
       - name: Initialize database schema
         env:
@@ -51,7 +51,7 @@ jobs:
           SD_DB_USER: postgres
           SD_DB_PASSWORD: postgres
         run: |
-          uv run python -m src.laliga_predictor.data.sd_db_init
+          cd backend && uv run python -m src.laliga_predictor.data.sd_db_init
 
       - name: Update data (current season)
         env:
@@ -61,19 +61,19 @@ jobs:
           SD_DB_USER: postgres
           SD_DB_PASSWORD: postgres
         run: |
-          make ml-update SEASON=2526
+          cd backend && make ml-update SEASON=2526
 
       - name: Build features
         run: |
-          make ml-features
+          cd backend && make ml-features
 
       - name: Validate features
         run: |
-          make ml-validate-features
+          cd backend && make ml-validate-features
 
       - name: Train models
         run: |
-          make ml-train
+          cd backend && make ml-train
 
       - name: Upload trained models to artifacts
         uses: actions/upload-artifact@v4
