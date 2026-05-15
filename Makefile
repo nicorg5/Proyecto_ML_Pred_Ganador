@@ -1,4 +1,4 @@
-.PHONY: help install install-dev sync test test-cov test-unit test-integration test-integration-db test-integration-ml lint format pre-commit scrape train db-init db-migrate db-reset clean docker-up docker-down sd-create-db sd-init sd-init-drop sd-etl sd-etl-mh sd-etl-espn sd-etl-fbref-schedule sd-etl-fbref-stats sd-etl-fbref-stats-type sd-etl-players sd-etl-shots sd-etl-standings sd-etl-season sd-validate sd-status ml-features ml-select-features ml-tune ml-train ml-train-winner ml-train-goals ml-train-cards ml-predict ml-predict-jornada ml-update ml-pipeline mlflow-ui mlflow-clean
+.PHONY: help install install-dev sync test test-cov test-unit test-integration test-integration-db test-integration-ml lint format pre-commit scrape train db-init db-migrate db-reset clean docker-up docker-down sd-create-db sd-init sd-init-drop sd-etl sd-etl-mh sd-etl-espn sd-etl-fbref-schedule sd-etl-fbref-stats sd-etl-fbref-stats-type sd-etl-players sd-etl-shots sd-etl-standings sd-etl-season sd-validate sd-status ml-features ml-select-features ml-tune ml-train ml-train-winner ml-train-goals ml-train-cards ml-predict ml-predict-jornada ml-update ml-pipeline mlflow-ui mlflow-clean api-run api-check
 
 # Default target
 .DEFAULT_GOAL := help
@@ -289,6 +289,19 @@ mlflow-clean: ## Clean MLflow database and artifacts
 	@echo "$(YELLOW)Cleaning MLflow data...$(NC)"
 	rm -rf mlflow.db mlruns/
 	@echo "$(GREEN)MLflow data cleaned$(NC)"
+
+# ===================================
+# API (FastAPI)
+# ===================================
+
+api-run: ## Start FastAPI server (http://localhost:8000)
+	@echo "$(BLUE)Starting FastAPI server...$(NC)"
+	@echo "API docs available at http://localhost:8000/docs"
+	uv run uvicorn src.laliga_predictor.api.main:app --reload --host 0.0.0.0 --port 8000
+
+api-check: ## Check API health
+	@echo "$(BLUE)Checking API health...$(NC)"
+	curl -s http://localhost:8000/health | python -m json.tool || echo "API not running"
 
 # ===================================
 # JUPYTER NOTEBOOK
