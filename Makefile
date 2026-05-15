@@ -121,6 +121,10 @@ ml-select-features: ## Run feature selection (importance + correlation filtering
 	@echo "$(BLUE)Running feature selection...$(NC)"
 	uv run python -m src.laliga_predictor.features.feature_selection --target all
 
+ml-validate-features: ## Validate features.parquet quality
+	@echo "$(BLUE)Validating features...$(NC)"
+	uv run python -m src.laliga_predictor.data.validate_features
+
 ml-tune: ## Run Optuna hyperparameter tuning (TARGET=all|winner|goals-ou|cards-ou)
 	@echo "$(BLUE)Running Optuna hyperparameter tuning...$(NC)"
 	uv run python -m src.laliga_predictor.models.tuning --target $(or $(TARGET),all)
@@ -156,7 +160,7 @@ ml-update: ## Update DB + features for current season (SEASON=2526)
 	uv run python -m src.laliga_predictor.features.feature_engineering
 	@echo "$(GREEN)Data updated! Ready to predict.$(NC)"
 
-ml-pipeline: ml-features ml-select-features ml-train ## Run full ML pipeline (features + select + train)
+ml-pipeline: ml-features ml-validate-features ml-select-features ml-train ## Run full ML pipeline (features + validate + select + train)
 	@echo "$(GREEN)ML pipeline complete!$(NC)"
 
 # ===================================
