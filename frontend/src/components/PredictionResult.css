@@ -1,0 +1,166 @@
+.prediction-result {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.match-info {
+  text-align: center;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.match-date {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+.match-teams {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.match-teams .team {
+  color: var(--secondary-color);
+}
+
+.match-teams .vs {
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.prediction-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.prediction-section h3 {
+  font-size: 1.1rem;
+  color: var(--primary-color);
+  margin: 0;
+}
+
+.winner-predictions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.prob-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  border-radius: 0.75rem;
+  background-color: var(--light-bg);
+  border: 2px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.prob-item.high {
+  background-color: rgba(16, 185, 129, 0.1);
+  border-color: #10b981;
+}
+
+.prob-item.medium {
+  background-color: rgba(251, 146, 60, 0.1);
+  border-color: #fb923c;
+}
+
+.prob-item.low {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+}
+
+.team-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+
+.probability {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--secondary-color);
+}
+
+.ou-predictions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ou-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: var(--light-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.line-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.ou-probs {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.prob-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.prob-badge.over {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.prob-badge.under {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.model-info {
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+  color: #9ca3af;
+}
+
+@media (max-width: 768px) {
+  .winner-predictions {
+    grid-template-columns: 1fr;
+  }
+
+  .match-teams {
+    flex-direction: column;
+    gap: 0.75rem;
+    font-size: 1.1rem;
+  }
+
+  .ou-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .ou-probs {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

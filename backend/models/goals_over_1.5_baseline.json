@@ -1,0 +1,9 @@
+{
+  "name": "Baseline_O/U_goals_1.5",
+  "model_type": "classifier",
+  "feature_count": 117,
+  "saved_at": "2026-05-15T17:39:04.771211",
+  "line": 1.5,
+  "stat_type": "goals",
+  "train_over_rate": 0.7182885270730783
+}

@@ -1,0 +1,50 @@
+{
+  "cards_over_3.5": {
+    "xgboost": {
+      "model": "Calibrated_XGBoost_O/U_cards_3.5",
+      "target": "cards_over_3.5",
+      "val": {
+        "accuracy": 0.6684210526315789,
+        "f1": 0.7934426229508197,
+        "precision": 0.6778711484593838,
+        "recall": 0.9565217391304348,
+        "auc_roc": 0.6151535899909745,
+        "log_loss": 0.6131844038135709,
+        "over_rate_true": 0.6657894736842105,
+        "over_rate_pred": 0.9394736842105263
+      }
+    }
+  },
+  "cards_over_4.5": {
+    "xgboost": {
+      "model": "Calibrated_XGBoost_O/U_cards_4.5",
+      "target": "cards_over_4.5",
+      "val": {
+        "accuracy": 0.6052631578947368,
+        "f1": 0.6073298429319371,
+        "precision": 0.5771144278606966,
+        "recall": 0.6408839779005525,
+        "auc_roc": 0.6354424053971515,
+        "log_loss": 0.6473187142409612,
+        "over_rate_true": 0.4763157894736842,
+        "over_rate_pred": 0.5289473684210526
+      }
+    }
+  },
+  "cards_over_5.5": {
+    "xgboost": {
+      "model": "Calibrated_XGBoost_O/U_cards_5.5",
+      "target": "cards_over_5.5",
+      "val": {
+        "accuracy": 0.6868421052631579,
+        "f1": 0.01652892561983471,
+        "precision": 1.0,
+        "recall": 0.008333333333333333,
+        "auc_roc": 0.6087019230769231,
+        "log_loss": 0.5967473958987778,
+        "over_rate_true": 0.3157894736842105,
+        "over_rate_pred": 0.002631578947368421
+      }
+    }
+  }
+}

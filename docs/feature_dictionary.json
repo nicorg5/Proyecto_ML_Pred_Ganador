@@ -1,0 +1,155 @@
+{
+    "_metadata": {
+        "descripcion": "Diccionario de variables (features) utilizadas en los modelos de predicción de La Liga",
+        "prefijos": {
+            "h_": "Equipo LOCAL (home)",
+            "a_": "Equipo VISITANTE (away)",
+            "h2h_": "Enfrentamientos directos entre ambos equipos (head-to-head)",
+            "_N": "El número al final indica la ventana temporal: últimos N partidos (ej: _3 = últimos 3 partidos, _5 = últimos 5, _10 = últimos 10)"
+        },
+        "fuentes_de_datos": {
+            "match_history": "Datos básicos de partidos de Football-Data.co.uk (goles, tiros, faltas, tarjetas)",
+            "espn": "Estadísticas avanzadas de ESPN (posesión, pases, entradas, despejes, etc.)",
+            "standings": "Tabla de clasificación de la liga calculada jornada a jornada"
+        }
+    },
+    "forma_reciente": {
+        "_seccion": "Variables de forma reciente del equipo (calculadas sobre los últimos N partidos)",
+        "variables": {
+            "h_win_rate_N / a_win_rate_N": "Porcentaje de victorias en los últimos N partidos (0.0 a 1.0). Ej: 0.6 = ganó 6 de 10.",
+            "h_draw_rate_N / a_draw_rate_N": "Porcentaje de empates en los últimos N partidos.",
+            "h_avg_goals_scored_N / a_avg_goals_scored_N": "Media de goles marcados por partido en los últimos N partidos.",
+            "h_avg_goals_conceded_N / a_avg_goals_conceded_N": "Media de goles encajados por partido en los últimos N partidos.",
+            "h_avg_shots_N / a_avg_shots_N": "Media de tiros totales por partido en los últimos N partidos.",
+            "h_avg_sot_N / a_avg_sot_N": "Media de tiros a puerta (Shots on Target) por partido en los últimos N partidos.",
+            "h_avg_corners_N / a_avg_corners_N": "Media de córners por partido en los últimos N partidos.",
+            "h_avg_fouls_N / a_avg_fouls_N": "Media de faltas cometidas por partido en los últimos N partidos.",
+            "h_avg_cards_N / a_avg_cards_N": "Media de tarjetas totales (amarillas + rojas) por partido en los últimos N partidos.",
+            "h_clean_sheets_N / a_clean_sheets_N": "Proporción de porterías a cero en los últimos N partidos (0.0 a 1.0).",
+            "h_points_N / a_points_N": "Puntos totales acumulados en los últimos N partidos (victoria=3, empate=1, derrota=0)."
+        }
+    },
+    "forma_como_local_visitante": {
+        "_seccion": "Variables de rendimiento específico como local o visitante (últimos 5 partidos en esa condición)",
+        "variables": {
+            "h_home_win_rate_5": "Porcentaje de victorias del equipo local jugando EN CASA en sus últimos 5 partidos como local.",
+            "h_home_avg_goals_5": "Media de goles marcados por el equipo local jugando en casa (últimos 5 partidos como local).",
+            "h_home_avg_conceded_5": "Media de goles encajados por el equipo local jugando en casa (últimos 5 partidos como local).",
+            "h_home_avg_cards_5": "Media de tarjetas del equipo local jugando en casa (últimos 5 partidos como local).",
+            "h_home_points_5": "Puntos sumados por el equipo local en sus últimos 5 partidos en casa.",
+            "h_home_matches_available": "Número de partidos como local disponibles en el historial (puede ser menor que 5 al inicio de temporada).",
+            "a_away_win_rate_5": "Porcentaje de victorias del equipo visitante jugando FUERA en sus últimos 5 partidos como visitante.",
+            "a_away_avg_goals_5": "Media de goles marcados por el visitante jugando fuera (últimos 5 partidos como visitante).",
+            "a_away_avg_conceded_5": "Media de goles encajados por el visitante jugando fuera (últimos 5).",
+            "a_away_avg_cards_5": "Media de tarjetas del visitante jugando fuera (últimos 5).",
+            "a_away_points_5": "Puntos sumados por el visitante en sus últimos 5 partidos fuera.",
+            "a_away_matches_available": "Número de partidos como visitante disponibles en el historial."
+        }
+    },
+    "estadisticas_avanzadas_espn": {
+        "_seccion": "Medias de estadísticas avanzadas de ESPN en los últimos 5 partidos",
+        "variables": {
+            "h_avg_possession_5 / a_avg_possession_5": "Posesión media del balón (%) en los últimos 5 partidos.",
+            "h_avg_passes_cmp_pct_5 / a_avg_passes_cmp_pct_5": "Precisión de pases media (%) en los últimos 5 partidos.",
+            "h_avg_tackles_won_5 / a_avg_tackles_won_5": "Media de entradas ganadas (tackles exitosos) en los últimos 5 partidos.",
+            "h_avg_interceptions_5 / a_avg_interceptions_5": "Media de intercepciones por partido en los últimos 5 partidos.",
+            "h_avg_clearances_5 / a_avg_clearances_5": "Media de despejes por partido en los últimos 5 partidos.",
+            "h_avg_crosses_cmp_pct_5 / a_avg_crosses_cmp_pct_5": "Precisión de centros media (%) en los últimos 5 partidos.",
+            "h_avg_long_balls_cmp_pct_5 / a_avg_long_balls_cmp_pct_5": "Precisión de balones largos media (%) en los últimos 5 partidos.",
+            "h_avg_saves_5 / a_avg_saves_5": "Media de paradas del portero por partido en los últimos 5 partidos.",
+            "h_avg_blocked_shots_5 / a_avg_blocked_shots_5": "Media de tiros bloqueados por la defensa en los últimos 5 partidos.",
+            "h_avg_offsides_5 / a_avg_offsides_5": "Media de fueras de juego por partido en los últimos 5 partidos."
+        }
+    },
+    "enfrentamientos_directos": {
+        "_seccion": "Historial de enfrentamientos directos entre ambos equipos (últimos 6 encuentros)",
+        "variables": {
+            "h2h_home_wins": "Número de victorias del equipo local en los últimos 6 enfrentamientos directos.",
+            "h2h_away_wins": "Número de victorias del equipo visitante en los últimos 6 enfrentamientos directos.",
+            "h2h_draws": "Número de empates en los últimos 6 enfrentamientos directos.",
+            "h2h_home_avg_goals": "Media de goles del equipo local en los enfrentamientos directos.",
+            "h2h_away_avg_goals": "Media de goles del equipo visitante en los enfrentamientos directos.",
+            "h2h_total_matches": "Número total de enfrentamientos directos encontrados en el historial (máximo 6)."
+        }
+    },
+    "clasificacion_liga": {
+        "_seccion": "Estado en la tabla de clasificación antes del partido. SON LAS VARIABLES MÁS IMPORTANTES para predecir el ganador.",
+        "variables": {
+            "h_league_position": "Posición en la tabla del equipo local antes del partido (1 = líder, 20 = colista).",
+            "a_league_position": "Posición en la tabla del equipo visitante antes del partido.",
+            "h_league_points": "Puntos totales en la liga del equipo local antes del partido.",
+            "a_league_points": "Puntos totales en la liga del equipo visitante antes del partido.",
+            "h_league_gd": "Diferencia de goles (goles a favor - goles en contra) del local en la liga.",
+            "a_league_gd": "Diferencia de goles del visitante en la liga.",
+            "position_diff": "Diferencia de posición en la tabla: posición_local - posición_visitante. Negativo = el local está más arriba en la tabla.",
+            "points_diff": "Diferencia de puntos: puntos_local - puntos_visitante. Positivo = el local tiene más puntos."
+        }
+    },
+    "contextuales": {
+        "_seccion": "Variables de contexto del partido",
+        "variables": {
+            "match_week": "Jornada aproximada de la temporada (1-38).",
+            "is_early_season": "¿Es inicio de temporada? (1 si jornada ≤ 10, 0 si no). Los equipos aún están en rodaje.",
+            "is_late_season": "¿Es final de temporada? (1 si jornada ≥ 30, 0 si no). Hay más en juego (descenso, título, Europa).",
+            "is_derby": "¿Es un derbi? (1 si ambos equipos son rivales locales/regionales, 0 si no). Partidos más intensos e impredecibles."
+        },
+        "_nota": "Las features de días de descanso (h_days_rest, a_days_rest, rest_advantage) fueron eliminadas porque solo consideraban partidos de La Liga y no otras competiciones (Champions, Copa del Rey, etc.), generando información incorrecta."
+    },
+    "elo_rating": {
+        "_seccion": "Sistema de rating ELO dinámico para equipos (actualizado partido a partido)",
+        "variables": {
+            "h_elo": "Rating ELO del equipo local antes del partido. Valores típicos: 1300-1700. Mayor rating = equipo más fuerte.",
+            "a_elo": "Rating ELO del equipo visitante antes del partido.",
+            "elo_diff": "Diferencia de rating ELO: h_elo - a_elo. Positivo = local más fuerte, negativo = visitante más fuerte.",
+            "elo_expected_home": "Probabilidad esperada de victoria local según ELO (0.0 a 1.0), ajustada con ventaja de campo (+50 puntos). Calculada con fórmula: 1 / (1 + 10^((a_elo - (h_elo + 50)) / 400))."
+        },
+        "_nota": "El sistema ELO se inicializa en 1500 para todos los equipos y se actualiza después de cada partido con K=20. Los equipos locales reciben +50 puntos de ventaja temporal."
+    },
+    "rachas": {
+        "_seccion": "Rachas actuales de los equipos (secuencias continuas de eventos)",
+        "variables": {
+            "h_win_streak / a_win_streak": "Racha de victorias consecutivas actual. Ejemplo: 3 = últimos 3 partidos ganados. Se rompe con empate o derrota.",
+            "h_unbeaten_streak / a_unbeaten_streak": "Racha de partidos sin perder (victorias + empates). Ejemplo: 5 = últimos 5 sin derrota. Se rompe solo con derrota.",
+            "h_scoring_streak / a_scoring_streak": "Racha de partidos marcando al menos 1 gol. Se rompe con partido sin goles.",
+            "h_clean_sheet_streak / a_clean_sheet_streak": "Racha de partidos sin encajar goles (portería a cero). Se rompe cuando encajan."
+        },
+        "_nota": "Todas las rachas se calculan iterando desde el partido más reciente hacia atrás hasta que se rompe la condición. Valor 0 = racha rota en el último partido."
+    },
+    "ema_medias_moviles_exponenciales": {
+        "_seccion": "Medias móviles exponenciales (EMA) que dan más peso a partidos recientes (alpha=0.3)",
+        "variables": {
+            "h_ema_goals / a_ema_goals": "Media exponencial de goles marcados por partido. Da más peso a partidos recientes que a antiguos.",
+            "h_ema_points / a_ema_points": "Media exponencial de puntos por partido (victoria=3, empate=1, derrota=0). Refleja forma reciente ponderada.",
+            "h_ema_conceded / a_ema_conceded": "Media exponencial de goles encajados por partido. Útil para detectar tendencias defensivas recientes."
+        },
+        "_nota": "Se usa pandas.ewm(alpha=0.3) para dar ~70% peso al promedio histórico y ~30% al partido más reciente. Suaviza fluctuaciones pero responde rápido a cambios de forma."
+    },
+    "diferencias_directas": {
+        "_seccion": "Diferencias directas entre local y visitante (últimos 5 partidos)",
+        "variables": {
+            "diff_win_rate_5": "Diferencia de win rate: h_win_rate_5 - a_win_rate_5. Rango: -1.0 a +1.0. Positivo = local ganando más.",
+            "diff_goals_5": "Diferencia de goles marcados promedio: h_avg_goals_scored_5 - a_avg_goals_scored_5. Positivo = local más goleador.",
+            "diff_conceded_5": "Diferencia de goles encajados promedio: h_avg_goals_conceded_5 - a_avg_goals_conceded_5. Positivo = local encaja más (malo para local)."
+        },
+        "_nota": "Estas variables pueden ser negativas (a diferencia de las tasas). Capturan la brecha de rendimiento relativo entre ambos equipos."
+    },
+    "total_goals_para_over_under": {
+        "_seccion": "Variables específicas para predecir total de goles del partido (Over/Under)",
+        "variables": {
+            "h_avg_total_goals_5": "Media de goles TOTALES (marcados + encajados) por el equipo local en sus últimos 5 partidos. Útil para predecir partidos con muchos goles.",
+            "a_avg_total_goals_5": "Media de goles TOTALES (marcados + encajados) por el visitante en sus últimos 5 partidos.",
+            "avg_combined_total_goals_5": "Media combinada: (h_avg_total_goals_5 + a_avg_total_goals_5) / 2. Estima goles esperados del partido."
+        },
+        "_nota": "Estas features son críticas para modelos O/U de goles. Un equipo con avg_total_goals alto tiende a participar en partidos con muchos goles, independientemente de si gana o pierde."
+    },
+    "probabilidad_empate": {
+        "_seccion": "Indicadores de probabilidad de empate (Draw likelihood)",
+        "variables": {
+            "h2h_draw_rate": "Proporción de empates en los últimos 6 enfrentamientos directos (0.0 a 1.0). Ejemplo: 0.33 = 2 empates de 6 partidos. Algunos equipos tienden a empatarse entre sí.",
+            "defensive_similarity_5": "Similitud defensiva: 1 - |h_avg_goals_conceded_5 - a_avg_goals_conceded_5|. Cercano a 1.0 = defensas similares, más probable empate.",
+            "goals_diff_closeness_5": "Cercanía en diferencia de goles: 1 - |h_league_gd - a_league_gd| / 100. Cercano a 1.0 = similar balance goleador, favorece empate.",
+            "form_similarity_5": "Similitud de forma reciente: 1 - |h_win_rate_5 - a_win_rate_5|. Cercano a 1.0 = forma similar, más probable empate equilibrado."
+        },
+        "_nota": "Estas features fueron diseñadas específicamente para mejorar la detección de empates, que suele ser el resultado más difícil de predecir en fútbol."
+    }
+}

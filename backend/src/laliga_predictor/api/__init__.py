@@ -1,0 +1,1 @@
+"""LaLiga Predictor REST API."""

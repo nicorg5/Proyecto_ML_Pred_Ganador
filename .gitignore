@@ -164,8 +164,10 @@ logs/*
 # notebooks/*.ipynb
 
 # MLflow
+mlflow.db
 mlruns/
 mlartifacts/
+.mlflow/
 
 # Weights & Biases
 wandb/
@@ -261,7 +263,10 @@ $RECYCLE.BIN/
 # ===================================
 # Docker volumes
 docker-compose.override.yml
-.dockerignore
+
+# Keep Dockerfile and .dockerignore tracked
+!Dockerfile
+!.dockerignore
 
 # ===================================
 # Database

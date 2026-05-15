@@ -1,0 +1,11 @@
+{
+  "name": "Calibrated_XGBoost",
+  "model_type": "classifier",
+  "feature_count": 118,
+  "saved_at": "2026-05-15T17:38:47.828671",
+  "classification_thresholds": [
+    1.0,
+    1.6,
+    1.0
+  ]
+}
