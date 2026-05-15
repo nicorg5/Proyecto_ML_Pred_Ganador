@@ -11,6 +11,7 @@ from pathlib import Path
 import joblib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from ..config import get_settings
 from .schemas import (
@@ -28,8 +29,8 @@ app = FastAPI(
     title="LaLiga Predictor API",
     description="ML predictions for La Liga match outcomes",
     version="2.0.0",
-    docs_url="/docs",
-    openapi_url="/openapi.json",
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
 )
 
 # CORS middleware
@@ -108,18 +109,18 @@ async def startup_event():
 # ============================================================================
 
 
-@app.get("/", tags=["Info"])
+@app.get("/api/", tags=["Info"])
 async def root():
     """Root endpoint with API info."""
     return {
         "name": "LaLiga Predictor API",
         "version": "2.0.0",
-        "docs": "/docs",
-        "health": "/health",
+        "docs": "/api/docs",
+        "health": "/api/health",
     }
 
 
-@app.get("/health", response_model=HealthResponse, tags=["Health"])
+@app.get("/api/health", response_model=HealthResponse, tags=["Health"])
 async def health():
     """Health check endpoint."""
     return HealthResponse(
@@ -129,7 +130,7 @@ async def health():
     )
 
 
-@app.get("/teams", response_model=TeamsResponse, tags=["Info"])
+@app.get("/api/teams", response_model=TeamsResponse, tags=["Info"])
 async def get_teams():
     """Get list of available teams for LaLiga 2025/26 season."""
     teams = [
@@ -157,7 +158,7 @@ async def get_teams():
     return TeamsResponse(teams=sorted(teams), count=len(teams))
 
 
-@app.post("/predict", response_model=PredictionResponse, tags=["Predictions"])
+@app.post("/api/predict", response_model=PredictionResponse, tags=["Predictions"])
 async def predict_match(request: PredictionRequest):
     """
     Predict match outcome (winner, goals, cards).
@@ -216,6 +217,12 @@ async def predict_match(request: PredictionRequest):
     except Exception as e:
         logger.error(f"Prediction error: {e}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}") from e
+
+
+# Montar frontend como StaticFiles
+static_path = Path(__file__).parent.parent / "static"
+if static_path.exists():
+    app.mount("/", StaticFiles(directory=str(static_path), html=True), name="static")
 
 
 if __name__ == "__main__":
