@@ -2,13 +2,16 @@
 Training pipeline for La Liga match prediction models.
 
 Trains classifiers (winner) and over/under classifiers (goals, cards) with
-temporal train/val/test splits.
+temporal train/val/test splits. Tracks experiments with MLflow.
 """
 
 import logging
+import os
 from functools import partial
 from pathlib import Path
 
+import mlflow
+import mlflow.sklearn
 import pandas as pd
 
 from ..config import get_settings
@@ -28,6 +31,11 @@ from .over_under import LightGBMOverUnder, OverUnderBaseline, XGBoostOverUnder
 from .tuning import load_tuned_params
 
 logger = logging.getLogger(__name__)
+
+# Configure MLflow
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+mlflow.set_experiment("laliga-predictor")
 
 # Metadata columns (not features)
 META_COLS = {
@@ -177,6 +185,7 @@ def train_model(
     val_seasons: list[str] | None = None,
     test_seasons: list[str] | None = None,
     save_dir: Path | None = None,
+    use_mlflow: bool = True,
 ) -> tuple[BasePredictor, dict]:
     """Train a single model for a target.
 
@@ -187,6 +196,7 @@ def train_model(
         train_seasons: Seasons for training
         val_seasons: Seasons for validation
         test_seasons: Seasons for testing
+        use_mlflow: Whether to log to MLflow
 
     Returns:
         (trained_model, metrics_dict)
@@ -222,6 +232,19 @@ def train_model(
         n_classes = 3 if target == "result" else 2
         model = CalibratedPredictor(model, n_classes=n_classes)
 
+    # Start MLflow run if enabled
+    run_context = mlflow.start_run(run_name=f"{target}_{model_name}") if use_mlflow else None
+    if use_mlflow:
+        mlflow.log_param("target", target)
+        mlflow.log_param("model_type", model_name)
+        mlflow.log_param("train_seasons", ",".join(train_s))
+        mlflow.log_param("val_seasons", ",".join(val_s))
+        mlflow.log_param("test_seasons", ",".join(test_s))
+        mlflow.log_param("n_features", X_train.shape[1])
+        mlflow.log_param("n_train_samples", len(X_train))
+        mlflow.log_param("n_val_samples", len(X_val))
+        mlflow.log_param("n_test_samples", len(X_test))
+
     logger.info(f"Training {model.name} for target={target}...")
     model.fit(X_train, y_train, X_val, y_val)
 
@@ -237,6 +260,11 @@ def train_model(
                 f"  Val: accuracy={val_metrics['accuracy']:.3f}, "
                 f"f1_macro={val_metrics['f1_macro']:.3f}"
             )
+            if use_mlflow:
+                mlflow.log_metric("val_accuracy", val_metrics["accuracy"])
+                mlflow.log_metric("val_f1_macro", val_metrics["f1_macro"])
+                mlflow.log_metric("val_precision", val_metrics.get("precision", 0))
+                mlflow.log_metric("val_recall", val_metrics.get("recall", 0))
         if len(y_test) > 0:
             test_metrics = evaluate_classifier(model, X_test, y_test)
             metrics["test"] = test_metrics
@@ -244,6 +272,9 @@ def train_model(
                 f"  Test: accuracy={test_metrics['accuracy']:.3f}, "
                 f"f1_macro={test_metrics['f1_macro']:.3f}"
             )
+            if use_mlflow:
+                mlflow.log_metric("test_accuracy", test_metrics["accuracy"])
+                mlflow.log_metric("test_f1_macro", test_metrics["f1_macro"])
     elif _is_over_under_target(target):
         # Binary classification (over/under)
         if len(y_val) > 0:
@@ -254,6 +285,10 @@ def train_model(
                 f"f1={val_metrics['f1']:.3f}, "
                 f"auc_roc={val_metrics['auc_roc']:.3f}"
             )
+            if use_mlflow:
+                mlflow.log_metric("val_accuracy", val_metrics["accuracy"])
+                mlflow.log_metric("val_f1", val_metrics["f1"])
+                mlflow.log_metric("val_auc_roc", val_metrics["auc_roc"])
         if len(y_test) > 0:
             test_metrics = evaluate_binary_classifier(model, X_test, y_test)
             metrics["test"] = test_metrics
@@ -262,10 +297,20 @@ def train_model(
                 f"f1={test_metrics['f1']:.3f}, "
                 f"auc_roc={test_metrics['auc_roc']:.3f}"
             )
+            if use_mlflow:
+                mlflow.log_metric("test_accuracy", test_metrics["accuracy"])
+                mlflow.log_metric("test_f1", test_metrics["f1"])
+                mlflow.log_metric("test_auc_roc", test_metrics["auc_roc"])
 
     # Save model
     model_path = Path(save_path) / f"{target}_{model_name}.joblib"
     model.save(model_path)
+
+    # Log model to MLflow
+    if use_mlflow:
+        mlflow.set_tag("framework", "scikit-learn")
+        mlflow.set_tag("calibrated", "no" if is_baseline else "yes")
+        mlflow.end_run()
 
     return model, metrics
 

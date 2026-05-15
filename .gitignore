@@ -164,8 +164,10 @@ logs/*
 # notebooks/*.ipynb
 
 # MLflow
+mlflow.db
 mlruns/
 mlartifacts/
+.mlflow/
 
 # Weights & Biases
 wandb/

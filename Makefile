@@ -1,4 +1,4 @@
-.PHONY: help install install-dev sync test test-cov test-unit test-integration test-integration-db test-integration-ml lint format pre-commit scrape train db-init db-migrate db-reset clean docker-up docker-down sd-create-db sd-init sd-init-drop sd-etl sd-etl-mh sd-etl-espn sd-etl-fbref-schedule sd-etl-fbref-stats sd-etl-fbref-stats-type sd-etl-players sd-etl-shots sd-etl-standings sd-etl-season sd-validate sd-status ml-features ml-select-features ml-tune ml-train ml-train-winner ml-train-goals ml-train-cards ml-predict ml-predict-jornada ml-update ml-pipeline
+.PHONY: help install install-dev sync test test-cov test-unit test-integration test-integration-db test-integration-ml lint format pre-commit scrape train db-init db-migrate db-reset clean docker-up docker-down sd-create-db sd-init sd-init-drop sd-etl sd-etl-mh sd-etl-espn sd-etl-fbref-schedule sd-etl-fbref-stats sd-etl-fbref-stats-type sd-etl-players sd-etl-shots sd-etl-standings sd-etl-season sd-validate sd-status ml-features ml-select-features ml-tune ml-train ml-train-winner ml-train-goals ml-train-cards ml-predict ml-predict-jornada ml-update ml-pipeline mlflow-ui mlflow-clean
 
 # Default target
 .DEFAULT_GOAL := help
@@ -272,6 +272,19 @@ sd-validate: ## Validate soccerdata database
 sd-status: ## Show soccerdata database statistics
 	@echo "$(BLUE)Soccerdata database status:$(NC)"
 	uv run python -m src.laliga_predictor.data.sd_db_init --verify
+
+# ===================================
+# MLFLOW
+# ===================================
+
+mlflow-ui: ## Start MLflow Tracking Server (http://localhost:5000)
+	@echo "$(BLUE)Starting MLflow Tracking Server...$(NC)"
+	./scripts/start_mlflow.sh
+
+mlflow-clean: ## Clean MLflow database and artifacts
+	@echo "$(YELLOW)Cleaning MLflow data...$(NC)"
+	rm -rf mlflow.db mlruns/
+	@echo "$(GREEN)MLflow data cleaned$(NC)"
 
 # ===================================
 # JUPYTER NOTEBOOK
