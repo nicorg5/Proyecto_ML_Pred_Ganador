@@ -63,6 +63,22 @@ services:
     networks:
       - laliga_network
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ./Dockerfile
+    container_name: laliga_web
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://backend:8000
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - laliga_network
+
 volumes:
   postgres_data:
   pgadmin_data:
