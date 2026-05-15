@@ -181,8 +181,8 @@ jobs:
     name: Build Package
     runs-on: ubuntu-latest
     needs: [lint, test, type-check]
-    # Solo hacer build cuando se pushea a master (producción)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # Deshabilitado: no necesario para Docker (docker build maneja la compilación)
+    if: false
 
     steps:
       - name: Checkout code
