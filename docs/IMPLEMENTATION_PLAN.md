@@ -157,30 +157,42 @@
 
 ---
 
-### **FASE 5.3: Restructuración Monorepositorio** ⏱️ 1 día
-- [ ] Crear carpetas `backend/` y `frontend/`
-- [ ] Mover `src/` → `backend/src/`
-- [ ] Mover `tests/` → `backend/tests/`
-- [ ] Mover `models/` → `backend/models/`
-- [ ] Mover `Dockerfile` → `backend/Dockerfile`
-- [ ] Actualizar imports y rutas en código
-- [ ] Verificar que CI/CD sigue funcionando
-- [ ] ✅ **CHECKPOINT 6**: Monorepositorio estructurado, tests pasando
+### **FASE 5.3: Restructuración Monorepositorio** ✅ COMPLETADA
+- [x] Crear carpetas `backend/` y `frontend/`
+- [x] Mover `src/` → `backend/src/`
+- [x] Mover `tests/` → `backend/tests/`
+- [x] Mover `models/` → `backend/models/`
+- [x] Mover `Dockerfile` → `backend/Dockerfile`
+- [x] Actualizar imports y rutas en código
+- [x] Verificar que CI/CD sigue funcionando
+- [x] ✅ **CHECKPOINT 6**: Monorepositorio estructurado, tests pasando
 
-**Archivos a mover/actualizar:**
-- Estructura de directorios
-- `Makefile` (o duplicar para cada parte)
-- `.github/workflows/ci.yml` — actualizar paths
+**Archivos movidos/actualizados:**
+- ✅ Estructura monorepositorio: `backend/` (src, tests, models, data, database, Dockerfile, pyproject.toml, Makefile)
+- ✅ Frontend: `frontend/` (src/components, src/pages, public)
+- ✅ `.github/workflows/ci.yml` — actualizado con `cd backend &&`
+- ✅ `.github/workflows/retrain-weekly.yml` — actualizado con `cd backend &&`
+- ✅ `docker-compose.yml` — rutas actualizadas a `./backend/*`
+- ✅ Root `Makefile` — wrapper que delega a `backend/Makefile`
+- ✅ `backend/pyproject.toml` — referencia a `../README.md`
+- ✅ Removido `shap` (incompatible con numpy 2.0, no crítico)
+
+**Tests validados:**
+- ✅ 125 unit tests pasando después de restructuración
+- ✅ Imports relativos funcionan correctamente desde `backend/`
+- ✅ Makefiles funcionales desde root y desde backend/
+
+**Commit**: refactor: Restructure as monorepository with backend/ and frontend/ folders (750740e)
 
 ---
 
-### **FASE 5.4: React Frontend** ⏱️ 3-4 días
-- [ ] Scaffolding React 19 + Vite en `frontend/`
-- [ ] Componentes principales: Predictor, Histórico, Stats
-- [ ] Conectar a API backend
-- [ ] Responsive design (mobile-friendly)
-- [ ] Dockerfile para frontend (Nginx)
-- [ ] ✅ **CHECKPOINT 7**: Frontend funcionando, conectado a API local
+### **FASE 5.4: React Frontend** ✅ COMPLETADA
+- [x] Scaffolding React 19 + Vite en `frontend/`
+- [x] Componentes principales: Predictor, Histórico, Stats
+- [x] Conectar a API backend
+- [x] Responsive design (mobile-friendly)
+- [x] Dockerfile para frontend (Nginx)
+- [x] ✅ **CHECKPOINT 7**: Frontend funcionando, conectado a API local
 
 **Archivos a crear:**
 - `frontend/package.json` — React + Vite
@@ -228,17 +240,17 @@ SEMANA 1 (8-14 mayo):
 SEMANA 2 (15-21 mayo):  ← ESTAMOS AQUÍ
   Jueves 15 mayo:  Fase 5.1 (FastAPI) ✅ COMPLETADA
   Viernes 15 mayo: Fase 5.2 (Docker) ✅ COMPLETADA
+  Viernes 15 mayo: Fase 5.3 (Restructuración) ✅ COMPLETADA
   
 SEMANA 2/3:
-  Próximo:         Fase 5.3 (Restructuración monorepositorio)
-  Después:         Fase 5.4 (React Frontend)
+  Miércoles 15 mayo: Fase 5.4 (React Frontend) ✅ COMPLETADA
+  Próximo:           Fase 5.5 (Deploy Render) - Testing local + Deploy
   
 SEMANA 3/4:
-  Siguiente:       Fase 5.5 (Deploy Render)
-  Final:           Documentación final + bugfixes
+  Final:             Documentación final + bugfixes
 ```
 
-**PROGRESO ACTUAL**: 5/10 sub-fases completadas (50% de implementación total)
+**PROGRESO ACTUAL**: 7/10 sub-fases completadas (70% de implementación total)
 
 ---
 
