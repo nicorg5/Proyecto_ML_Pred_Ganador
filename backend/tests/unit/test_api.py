@@ -28,7 +28,7 @@ class TestRootEndpoint:
 
     def test_root_returns_api_info(self, client):
         """Root endpoint should return API information."""
-        response = client.get("/")
+        response = client.get("/api/")
         assert response.status_code == 200
         data = response.json()
         assert "name" in data
@@ -41,7 +41,7 @@ class TestHealthEndpoint:
 
     def test_health_check_returns_healthy(self, client):
         """Health endpoint should return healthy status."""
-        response = client.get("/health")
+        response = client.get("/api/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
@@ -50,7 +50,7 @@ class TestHealthEndpoint:
 
     def test_health_response_schema(self, client):
         """Health response should conform to schema."""
-        response = client.get("/health")
+        response = client.get("/api/health")
         assert response.status_code == 200
         # Should not raise validation error
         HealthResponse(**response.json())
@@ -61,7 +61,7 @@ class TestTeamsEndpoint:
 
     def test_teams_returns_list(self, client):
         """Teams endpoint should return list of teams."""
-        response = client.get("/teams")
+        response = client.get("/api/teams")
         assert response.status_code == 200
         data = response.json()
         assert "teams" in data
@@ -72,14 +72,14 @@ class TestTeamsEndpoint:
 
     def test_teams_response_schema(self, client):
         """Teams response should conform to schema."""
-        response = client.get("/teams")
+        response = client.get("/api/teams")
         assert response.status_code == 200
         # Should not raise validation error
         TeamsResponse(**response.json())
 
     def test_teams_are_sorted(self, client):
         """Teams should be returned in alphabetical order."""
-        response = client.get("/teams")
+        response = client.get("/api/teams")
         data = response.json()
         teams = data["teams"]
         assert teams == sorted(teams)
@@ -95,7 +95,7 @@ class TestPredictionEndpoint:
             "away_team": "Barcelona",
             "match_date": "2026-05-20",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         # Either 200 (models loaded) or 503 (models not available)
         assert response.status_code in [200, 503]
         if response.status_code == 200:
@@ -111,7 +111,7 @@ class TestPredictionEndpoint:
             "away_team": "Barcelona",
             "match_date": "2026-05-20",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         if response.status_code == 200:
             # Should not raise validation error
             PredictionResponse(**response.json())
@@ -123,7 +123,7 @@ class TestPredictionEndpoint:
             "away_team": "Barcelona",
             "match_date": "2026-05-20",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         if response.status_code == 200:
             data = response.json()
             assert "winner" in data
@@ -139,7 +139,7 @@ class TestPredictionEndpoint:
             "away_team": "Barcelona",
             "match_date": "2026-05-20",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         if response.status_code == 200:
             data = response.json()
             assert "goals" in data
@@ -153,7 +153,7 @@ class TestPredictionEndpoint:
             "away_team": "Barcelona",
             "match_date": "2026-05-20",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         if response.status_code == 200:
             data = response.json()
             assert "cards" in data
@@ -166,7 +166,7 @@ class TestPredictionEndpoint:
             "away_team": "Barcelona",
             "match_date": "2026-05-20",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         assert response.status_code == 422  # Validation error
 
     def test_prediction_missing_away_team(self, client):
@@ -175,7 +175,7 @@ class TestPredictionEndpoint:
             "home_team": "Real Madrid",
             "match_date": "2026-05-20",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         assert response.status_code == 422
 
     def test_prediction_missing_match_date(self, client):
@@ -184,7 +184,7 @@ class TestPredictionEndpoint:
             "home_team": "Real Madrid",
             "away_team": "Barcelona",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         assert response.status_code == 422
 
     def test_prediction_probabilities_sum_to_one(self, client):
@@ -194,7 +194,7 @@ class TestPredictionEndpoint:
             "away_team": "Barcelona",
             "match_date": "2026-05-20",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         if response.status_code == 200:
             data = response.json()
             winner = data["winner"]
@@ -208,7 +208,7 @@ class TestPredictionEndpoint:
             "away_team": "Barcelona",
             "match_date": "2026-05-20",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         if response.status_code == 200:
             data = response.json()
 
@@ -229,7 +229,7 @@ class TestPredictionEndpoint:
             "away_team": "Barcelona",
             "match_date": "2026-05-20",
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/api/predict", json=payload)
         if response.status_code == 200:
             data = response.json()
             assert "generated_at" in data
@@ -242,13 +242,13 @@ class TestSwaggerDocs:
 
     def test_swagger_ui_accessible(self, client):
         """Swagger UI should be accessible at /docs."""
-        response = client.get("/docs")
+        response = client.get("/api/docs")
         assert response.status_code == 200
         assert "swagger" in response.text.lower() or "openapi" in response.text.lower()
 
     def test_openapi_schema_accessible(self, client):
         """OpenAPI schema should be accessible at /openapi.json."""
-        response = client.get("/openapi.json")
+        response = client.get("/api/openapi.json")
         assert response.status_code == 200
         data = response.json()
         assert "openapi" in data
