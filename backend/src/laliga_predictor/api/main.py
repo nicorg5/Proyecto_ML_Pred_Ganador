@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from ..config import get_settings
+from .predictor import load_features_cache, predict_match
 from .schemas import (
     HealthResponse,
     PredictionRequest,
@@ -42,8 +43,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global model cache
-_models_cache = {}
+# Global caches
+_models_cache: dict = {}
+_features_df = None
 
 
 def _load_models():
@@ -99,8 +101,14 @@ def _load_models():
 # Load models on startup
 @app.on_event("startup")
 async def startup_event():
-    """Load models when API starts."""
+    """Load models and features cache when API starts."""
+    global _features_df
     app.state.models_loaded = _load_models()
+
+    settings = get_settings()
+    features_path = Path(settings.FEATURE_CACHE_DIR) / "features.parquet"
+    _features_df = load_features_cache(features_path)
+
     logger.info("API startup complete")
 
 
@@ -178,42 +186,35 @@ async def predict_match(request: PredictionRequest):
         )
 
     try:
-        # Placeholder prediction logic
-        # In production, this would:
-        # 1. Load match features from database
-        # 2. Build features for the specific match
-        # 3. Run predictions through models
-        # 4. Return structured results
+        prediction = predict_match(
+            models=_models_cache,
+            features_df=_features_df,
+            home_team=request.home_team,
+            away_team=request.away_team,
+        )
 
-        winner_model = _models_cache.get("winner")
-        if winner_model is None:
-            raise HTTPException(status_code=503, detail="Models not ready")
+        if prediction is None or prediction.get("winner") is None:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Could not build features for {request.home_team} vs {request.away_team}. "
+                    "Insufficient historical data."
+                ),
+            )
 
-        # Mock predictions for now (replace with actual prediction logic)
         return PredictionResponse(
             home_team=request.home_team,
             away_team=request.away_team,
             match_date=request.match_date,
-            winner=WinnerPrediction(
-                predicted="H",
-                home_prob=0.45,
-                draw_prob=0.30,
-                away_prob=0.25,
-            ),
-            goals={
-                "1.5": {"over": 0.80, "under": 0.20},
-                "2.5": {"over": 0.60, "under": 0.40},
-                "3.5": {"over": 0.35, "under": 0.65},
-            },
-            cards={
-                "3.5": {"over": 0.70, "under": 0.30},
-                "4.5": {"over": 0.55, "under": 0.45},
-                "5.5": {"over": 0.25, "under": 0.75},
-            },
+            winner=WinnerPrediction(**prediction["winner"]),
+            goals=prediction["goals"],
+            cards=prediction["cards"],
             model_version="v2.0",
             generated_at=datetime.utcnow(),
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Prediction error: {e}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}") from e
