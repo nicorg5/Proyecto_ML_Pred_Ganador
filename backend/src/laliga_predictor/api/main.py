@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from ..config import get_settings
-from .predictor import load_features_cache, predict_match
+from .predictor import load_features_cache, predict_match as run_prediction
 from .schemas import (
     HealthResponse,
     PredictionRequest,
@@ -186,7 +186,7 @@ async def predict_match(request: PredictionRequest):
         )
 
     try:
-        prediction = predict_match(
+        prediction = run_prediction(
             models=_models_cache,
             features_df=_features_df,
             home_team=request.home_team,
