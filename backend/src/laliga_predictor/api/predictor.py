@@ -56,9 +56,7 @@ TEAM_NAME_MAP = {
 
 
 def _strip_accents(text: str) -> str:
-    return "".join(
-        c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn"
-    )
+    return "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
 
 
 def normalize_team(name: str) -> str:
@@ -104,9 +102,7 @@ def _latest_role(df: pd.DataFrame, team: str, is_home: bool) -> pd.Series | None
     return matches.iloc[-1]
 
 
-def build_match_features(
-    df: pd.DataFrame, home_team: str, away_team: str
-) -> pd.DataFrame | None:
+def build_match_features(df: pd.DataFrame, home_team: str, away_team: str) -> pd.DataFrame | None:
     """Build a feature vector for an upcoming match.
 
     Strategy:

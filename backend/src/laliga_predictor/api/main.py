@@ -14,7 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from ..config import get_settings
-from .predictor import load_features_cache, predict_match as run_prediction
+from .predictor import load_features_cache
+from .predictor import predict_match as run_prediction
 from .schemas import (
     HealthResponse,
     PredictionRequest,
