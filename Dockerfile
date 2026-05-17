@@ -13,7 +13,6 @@ RUN npm install --no-audit --no-fund
 COPY frontend/index.html ./
 COPY frontend/vite.config.js ./
 COPY frontend/src ./src
-COPY frontend/public ./public
 
 # Build frontend (output: /app/frontend/dist)
 RUN npm run build
